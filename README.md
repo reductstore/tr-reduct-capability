@@ -1,24 +1,42 @@
 # tr-reduct-capability
 
-Transitive Robotics capability package to deploy and manage a ReductStore instance.
+Transitive Robotics package to deploy and manage ReductStore.
 
-## Status
+## What is implemented (v1)
 
-Bootstrap scaffold to validate GitHub workflow (branching, commit, push).
+- Robot capability with ReductStore lifecycle commands:
+  - start
+  - stop
+  - restart
+- Device status + health publishing
+- Minimal cloud summary capability
+- Minimal device/fleet web components
+- Basic runtime unit tests
 
-## Quick start
+## Project structure
+
+- `robot/` robot runtime and command handling
+- `cloud/` minimal fleet summary logic
+- `web/` minimal UI components
+- `docs/CAPABILITY_SPEC.md` capability scope
+- `test/` basic tests
+
+## Local dev
 
 ```bash
-npm install
-npm start
+npm --prefix robot install
+npm --prefix cloud install
+npm test
 ```
 
-Expected output:
+Run robot locally:
 
-```text
-tr-reduct-capability bootstrap: ready
+```bash
+npm run dev:robot
 ```
 
-## Next
+Run cloud locally:
 
-Define capability requirements (runtime model, ReductStore connection settings, auth, lifecycle hooks, and health checks).
+```bash
+npm run dev:cloud
+```

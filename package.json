@@ -6,13 +6,22 @@
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node src/index.js",
-    "test": "node -e \"console.log('No tests yet')\""
+    "start": "./subScript.sh start",
+    "cloud": "./subScript.sh cloud",
+    "dev:robot": "npm --prefix robot run start",
+    "dev:cloud": "npm --prefix cloud run start",
+    "test": "npm --prefix robot run test"
   },
   "keywords": [
     "transitive-robotics",
     "reductstore",
     "capability"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "config": {
+    "versionNamespace": "minor"
+  },
+  "transitiverobotics": {
+    "title": "ReductStore"
+  }
 }
