@@ -1,6 +1,7 @@
 'use strict';
 
 const { Capability, getLogger } = require('@transitive-sdk/utils');
+const { computeFleetSummary } = require('./lib/fleet-summary');
 
 const log = getLogger('reductstore-cloud');
 log.setLevel(process.env.LOG_LEVEL || 'info');
@@ -22,19 +23,10 @@ class CloudCapability extends Capability {
 
   publishFleetSummary() {
     const root = this.data.get() || {};
-    let running = 0;
-    let error = 0;
+    const { runningCount, errorCount } = computeFleetSummary(root, this.fullName);
 
-    for (const org of Object.values(root)) {
-      for (const device of Object.values(org || {})) {
-        const state = device?.[this.fullName]?.device?.status?.state;
-        if (state === 'running') running += 1;
-        if (state === 'error') error += 1;
-      }
-    }
-
-    this.data.update(`/cloud/fleet/runningCount`, running);
-    this.data.update(`/cloud/fleet/errorCount`, error);
+    this.data.update(`/cloud/fleet/runningCount`, runningCount);
+    this.data.update(`/cloud/fleet/errorCount`, errorCount);
     this.data.update(`/cloud/fleet/updatedAt`, Date.now());
   }
 }

@@ -3,9 +3,9 @@
 const mqtt = require('mqtt');
 const { MqttSync, getLogger, getPackageVersionNamespace } = require('@transitive-sdk/utils');
 const runtime = require('./lib/reductstore-runtime');
-const { validateRuntimeConfigPatch } = require('./lib/commands');
 const { createCommandDispatcher } = require('./lib/command-dispatcher');
 const { createCommandQueue } = require('./lib/command-queue');
+const { applyRuntimeConfigUpdate } = require('./lib/runtime-config');
 
 const log = getLogger('reductstore-robot');
 log.setLevel(process.env.LOG_LEVEL || 'info');
@@ -75,13 +75,7 @@ mqttClient.once('connect', () => {
   mqttSync.data.subscribePathFlat('/commands', onCommandEvent);
 
   mqttSync.data.subscribePathFlat('/config/runtime', (value, key) => {
-    const field = key.split('/').filter(Boolean).pop();
-    if (!field || field === 'runtime') return;
-    if (!validateRuntimeConfigPatch(field, value)) {
-      log.warn(`invalid runtime config ignored: ${field}`);
-      return;
-    }
-    config[field] = value;
+    applyRuntimeConfigUpdate(config, key, value, log);
   });
 
   setInterval(() => {
