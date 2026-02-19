@@ -3,7 +3,9 @@
 const mqtt = require('mqtt');
 const { MqttSync, getLogger, getPackageVersionNamespace } = require('@transitive-sdk/utils');
 const runtime = require('./lib/reductstore-runtime');
-const { extractActionFromKey, validateRuntimeConfigPatch } = require('./lib/commands');
+const { validateRuntimeConfigPatch } = require('./lib/commands');
+const { createCommandDispatcher } = require('./lib/command-dispatcher');
+const { createCommandQueue } = require('./lib/command-queue');
 
 const log = getLogger('reductstore-robot');
 log.setLevel(process.env.LOG_LEVEL || 'info');
@@ -17,7 +19,7 @@ const mqttClient = mqtt.connect('mqtt://localhost', {
 
 let mqttSync;
 let config = { ...runtime.DEFAULTS };
-let commandQueue = Promise.resolve();
+let enqueueCommand;
 
 async function checkAlive(port) {
   try {
@@ -58,23 +60,19 @@ async function executeCommand(action, payload = {}) {
   await publishState();
 }
 
-function enqueueCommand(action, payload) {
-  commandQueue = commandQueue
-    .catch(() => {})
-    .then(() => executeCommand(action, payload));
-}
-
 mqttClient.once('connect', () => {
   mqttSync = new MqttSync({ mqttClient, ignoreRetain: true, sliceTopic: 5 });
+  enqueueCommand = createCommandQueue(executeCommand);
 
   mqttSync.subscribe('/commands');
   mqttSync.publish('/device');
 
-  mqttSync.data.subscribePathFlat('/commands', (value, key) => {
-    const action = extractActionFromKey(key);
-    if (!action || typeof value !== 'object' || value === null) return;
-    enqueueCommand(action, value);
+  const onCommandEvent = createCommandDispatcher({
+    enqueueCommand,
+    logger: log
   });
+
+  mqttSync.data.subscribePathFlat('/commands', onCommandEvent);
 
   mqttSync.data.subscribePathFlat('/config/runtime', (value, key) => {
     const field = key.split('/').pop();
