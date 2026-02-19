@@ -75,7 +75,8 @@ mqttClient.once('connect', () => {
   mqttSync.data.subscribePathFlat('/commands', onCommandEvent);
 
   mqttSync.data.subscribePathFlat('/config/runtime', (value, key) => {
-    const field = key.split('/').pop();
+    const field = key.split('/').filter(Boolean).pop();
+    if (!field || field === 'runtime') return;
     if (!validateRuntimeConfigPatch(field, value)) {
       log.warn(`invalid runtime config ignored: ${field}`);
       return;
