@@ -24,3 +24,20 @@ test('command queue executes commands sequentially', async () => {
     'start:restart', 'end:restart'
   ]);
 });
+
+test('command queue continues after a failed command', async () => {
+  const order = [];
+  const queue = createCommandQueue(async (action) => {
+    order.push(`start:${action}`);
+    if (action === 'fail') throw new Error('boom');
+    order.push(`end:${action}`);
+  });
+
+  await assert.rejects(queue('fail', {}));
+  await queue('recover', {});
+
+  assert.deepEqual(order, [
+    'start:fail',
+    'start:recover', 'end:recover'
+  ]);
+});

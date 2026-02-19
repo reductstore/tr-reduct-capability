@@ -5,11 +5,18 @@ const { extractActionFromKey } = require('./commands');
 function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) {
   const pending = new Map();
   const timers = new Map();
+  const lastObjectDispatchAt = new Map();
+
+  function clearPending(action) {
+    const timer = timers.get(action);
+    if (timer) clearTimeout(timer);
+    timers.delete(action);
+    pending.delete(action);
+  }
 
   function flush(action) {
     const payload = pending.get(action) || {};
-    pending.delete(action);
-    timers.delete(action);
+    clearPending(action);
     enqueueCommand(action, payload);
   }
 
@@ -18,6 +25,8 @@ function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) 
     if (!action) return;
 
     if (value && typeof value === 'object' && !Array.isArray(value)) {
+      clearPending(action);
+      lastObjectDispatchAt.set(action, Date.now());
       enqueueCommand(action, value);
       return;
     }
@@ -29,6 +38,9 @@ function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) 
       logger?.warn?.(`ignoring malformed command key: ${key}`);
       return;
     }
+
+    const recentlyDispatchedObject = Date.now() - (lastObjectDispatchAt.get(action) || 0) <= flushDelayMs;
+    if (recentlyDispatchedObject) return;
 
     const existing = pending.get(action) || {};
     existing[field] = value;
