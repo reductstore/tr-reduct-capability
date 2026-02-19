@@ -5,7 +5,7 @@ const { extractActionFromKey } = require('./commands');
 function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) {
   const pending = new Map();
   const timers = new Map();
-  const lastObjectDispatchAt = new Map();
+  const lastRequestIdByAction = new Map();
 
   function clearPending(action) {
     const timer = timers.get(action);
@@ -14,10 +14,22 @@ function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) 
     pending.delete(action);
   }
 
+  function shouldSkipAsDuplicate(action, payload) {
+    const requestId = payload?.requestId;
+    if (!requestId) return false;
+    return lastRequestIdByAction.get(action) === requestId;
+  }
+
+  function dispatch(action, payload) {
+    if (shouldSkipAsDuplicate(action, payload)) return;
+    if (payload?.requestId) lastRequestIdByAction.set(action, payload.requestId);
+    enqueueCommand(action, payload);
+  }
+
   function flush(action) {
     const payload = pending.get(action) || {};
     clearPending(action);
-    enqueueCommand(action, payload);
+    dispatch(action, payload);
   }
 
   return function onCommandEvent(value, key) {
@@ -26,8 +38,7 @@ function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) 
 
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       clearPending(action);
-      lastObjectDispatchAt.set(action, Date.now());
-      enqueueCommand(action, value);
+      dispatch(action, value);
       return;
     }
 
@@ -38,9 +49,6 @@ function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) 
       logger?.warn?.(`ignoring malformed command key: ${key}`);
       return;
     }
-
-    const recentlyDispatchedObject = Date.now() - (lastObjectDispatchAt.get(action) || 0) <= flushDelayMs;
-    if (recentlyDispatchedObject) return;
 
     const existing = pending.get(action) || {};
     existing[field] = value;
