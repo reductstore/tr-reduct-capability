@@ -91,3 +91,25 @@ test('dispatcher keeps actions isolated when interleaved', async () => {
   const actions = calls.map((c) => c.action).sort();
   assert.deepEqual(actions, ['restart', 'start']);
 });
+
+test('dispatcher waits for late requestId and enqueues once', async () => {
+  const calls = [];
+  const dispatch = createCommandDispatcher({
+    enqueueCommand: (action, payload) => calls.push({ action, payload }),
+    flushDelayMs: 10,
+    maxScalarFlushAttempts: 10
+  });
+
+  dispatch('ui', '/commands/restart/actor');
+  dispatch(111, '/commands/restart/ts');
+
+  await new Promise((r) => setTimeout(r, 35));
+  assert.equal(calls.length, 0);
+
+  dispatch('late-req', '/commands/restart/requestId');
+  await new Promise((r) => setTimeout(r, 25));
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].action, 'restart');
+  assert.equal(calls[0].payload.requestId, 'late-req');
+});

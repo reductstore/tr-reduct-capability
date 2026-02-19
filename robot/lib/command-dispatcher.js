@@ -2,9 +2,10 @@
 
 const { extractActionFromKey } = require('./commands');
 
-function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) {
+function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15, maxScalarFlushAttempts = 20 }) {
   const pending = new Map();
   const timers = new Map();
+  const flushAttempts = new Map();
   const lastRequestIdByAction = new Map();
 
   function clearPending(action) {
@@ -12,6 +13,7 @@ function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) 
     if (timer) clearTimeout(timer);
     timers.delete(action);
     pending.delete(action);
+    flushAttempts.delete(action);
   }
 
   function shouldSkipAsDuplicate(action, payload) {
@@ -26,8 +28,27 @@ function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) 
     enqueueCommand(action, payload);
   }
 
+  function scheduleFlush(action) {
+    if (timers.has(action)) return;
+    timers.set(action, setTimeout(() => flush(action), flushDelayMs));
+  }
+
   function flush(action) {
+    timers.delete(action);
     const payload = pending.get(action) || {};
+
+    if (!payload.requestId) {
+      const attempts = (flushAttempts.get(action) || 0) + 1;
+      flushAttempts.set(action, attempts);
+      if (attempts >= maxScalarFlushAttempts) {
+        logger?.warn?.(`dropping incomplete scalar command for ${action}: missing requestId`);
+        clearPending(action);
+        return;
+      }
+      scheduleFlush(action);
+      return;
+    }
+
     clearPending(action);
     dispatch(action, payload);
   }
@@ -54,8 +75,7 @@ function createCommandDispatcher({ enqueueCommand, logger, flushDelayMs = 15 }) 
     existing[field] = value;
     pending.set(action, existing);
 
-    if (timers.has(action)) return;
-    timers.set(action, setTimeout(() => flush(action), flushDelayMs));
+    scheduleFlush(action);
   };
 }
 
