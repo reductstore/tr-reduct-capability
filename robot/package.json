@@ -1,0 +1,14 @@
+{
+  "name": "@reductstore/tr-reduct-capability-robot",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "test": "node --test ../test/*.test.js"
+  },
+  "dependencies": {
+    "@transitive-sdk/utils": "^0.16.2",
+    "mqtt": "^5.10.4"
+  }
+}

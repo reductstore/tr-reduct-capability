@@ -1,0 +1,27 @@
+{
+  "name": "@reductstore/tr-reduct-capability",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Transitive Robotics capability package for deploying and managing ReductStore",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "./subScript.sh start",
+    "cloud": "./subScript.sh cloud",
+    "dev:robot": "npm --prefix robot run start",
+    "dev:cloud": "npm --prefix cloud run start",
+    "test": "npm --prefix robot run test"
+  },
+  "keywords": [
+    "transitive-robotics",
+    "reductstore",
+    "capability"
+  ],
+  "license": "MIT",
+  "config": {
+    "versionNamespace": "minor"
+  },
+  "transitiverobotics": {
+    "title": "ReductStore"
+  }
+}
