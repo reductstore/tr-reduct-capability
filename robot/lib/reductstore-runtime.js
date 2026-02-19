@@ -3,7 +3,6 @@
 const { execFile } = require('node:child_process');
 
 const DEFAULTS = {
-  mode: 'docker',
   image: 'reductstore/reductstore:latest',
   containerName: 'reductstore',
   httpPort: 8383,

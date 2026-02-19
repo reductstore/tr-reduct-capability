@@ -15,6 +15,7 @@ class CloudCapability extends Capability {
         this.publishFleetSummary();
       });
 
+      setInterval(() => this.publishFleetSummary(), 10000);
       log.info(`cloud capability started: ${this.fullName}`);
     });
   }

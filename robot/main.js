@@ -3,6 +3,7 @@
 const mqtt = require('mqtt');
 const { MqttSync, getLogger, getPackageVersionNamespace } = require('@transitive-sdk/utils');
 const runtime = require('./lib/reductstore-runtime');
+const { extractActionFromKey, validateRuntimeConfigPatch } = require('./lib/commands');
 
 const log = getLogger('reductstore-robot');
 log.setLevel(process.env.LOG_LEVEL || 'info');
@@ -16,6 +17,7 @@ const mqttClient = mqtt.connect('mqtt://localhost', {
 
 let mqttSync;
 let config = { ...runtime.DEFAULTS };
+let commandQueue = Promise.resolve();
 
 async function checkAlive(port) {
   try {
@@ -36,7 +38,7 @@ async function publishState() {
   mqttSync?.data.update('/device/health/lastCheckAt', Date.now());
 }
 
-async function handleCommand(action, payload = {}) {
+async function executeCommand(action, payload = {}) {
   const requestId = payload.requestId || `req-${Date.now()}`;
   try {
     if (action === 'start') await runtime.start(config);
@@ -56,6 +58,12 @@ async function handleCommand(action, payload = {}) {
   await publishState();
 }
 
+function enqueueCommand(action, payload) {
+  commandQueue = commandQueue
+    .catch(() => {})
+    .then(() => executeCommand(action, payload));
+}
+
 mqttClient.once('connect', () => {
   mqttSync = new MqttSync({ mqttClient, ignoreRetain: true, sliceTopic: 5 });
 
@@ -63,12 +71,17 @@ mqttClient.once('connect', () => {
   mqttSync.publish('/device');
 
   mqttSync.data.subscribePathFlat('/commands', (value, key) => {
-    const action = key.split('/').pop();
-    if (value) handleCommand(action, value);
+    const action = extractActionFromKey(key);
+    if (!action || typeof value !== 'object' || value === null) return;
+    enqueueCommand(action, value);
   });
 
   mqttSync.data.subscribePathFlat('/config/runtime', (value, key) => {
     const field = key.split('/').pop();
+    if (!validateRuntimeConfigPatch(field, value)) {
+      log.warn(`invalid runtime config ignored: ${field}`);
+      return;
+    }
     config[field] = value;
   });
 
