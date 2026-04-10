@@ -32,6 +32,11 @@ test('buildRunArgs adds RS_API_TOKEN when enabled', () => {
   assert.ok(args.includes('RS_API_TOKEN=secret'));
 });
 
+test('defaults enable auth with a local token', () => {
+  assert.equal(runtime.DEFAULTS.authEnabled, true);
+  assert.equal(runtime.DEFAULTS.apiToken, 'transitive-local-token');
+});
+
 test('status returns stopped when docker output is empty', async () => {
   const runner = async () => '';
   const st = await runtime.status({ containerName: 'abc' }, runner);
