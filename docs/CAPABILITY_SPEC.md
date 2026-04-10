@@ -1,37 +1,61 @@
-# ReductStore Capability Spec (Simple v1)
+# ReductStore Capability Spec
 
-## Goal
+## What it does
 
-Build a **Transitive Robotics package** that can manage a local ReductStore instance on a robot/device.
+Transitive Robotics capability that manages a local ReductStore instance on a robot and ingests ROS 1 / ROS 2 topics into it via ReductBridge.
 
-That means:
-- start ReductStore
-- stop ReductStore
-- restart ReductStore
-- show if it is healthy/alive
+## Architecture
 
-## In scope (now)
+```
+┌─────────────┐     ┌──────────────┐     ┌──────────────┐
+│  Web UI     │────▶│  Cloud       │────▶│  Robot       │
+│  settings   │     │  fleet agg   │     │  runtime     │
+└─────────────┘     └──────────────┘     └──────┬───────┘
+                                                │
+                                    ┌───────────┼───────────┐
+                                    ▼           ▼           ▼
+                              ReductStore   ReductBridge  Watchdog
+                              (Docker)      (host proc)   (recovery)
+```
 
-1. **Robot part (main part)**
-   - Control ReductStore lifecycle
-   - Report state (`running`, `stopped`, `error`)
-   - Report simple health (`/api/v1/alive`)
+## Robot part
 
-2. **Minimal cloud part**
-   - Read device status
-   - Show a basic fleet summary (very small)
+- Start / stop / restart ReductStore (Docker container) and ReductBridge (host process)
+- Generate ReductBridge TOML from runtime config (ROS 1 + ROS 2 inputs, remote, pipeline)
+- Publish device state, component status, and health to MQTT data tree
+- Persist config to `~/.tr-reduct-capability/config.json`
+- Auto-start on boot (configurable via `boot.autoStartStore` / `boot.autoStartBridge`)
+- Process watchdog: restarts crashed components with exponential backoff
+- Graceful shutdown on SIGTERM / SIGINT
 
-3. **Minimal UI part**
-   - Device status
-   - Start / Stop / Restart buttons
+## Cloud part
 
-4. **Basic tests**
-   - Command handling works
-   - State updates are correct
+- Aggregate fleet summary with per-component breakdown:
+  - Store: running / stopped / error
+  - Bridge: running / stopped / error / disabled
+  - Ingestion: configured / not configured
+- Publish on state change and every 10s
 
-## Next steps
+## Web part
 
-1. Add a **collector** to this same package (definition pending).
-2. Configure collector to gather data from multiple sources and store it in ReductStore.
+- **Status tab**: overall state, health, component status, start/stop/restart buttons
+- **Store tab**: image, container name, port, data path, auth settings
+- **Bridge tab**: command, bucket, prefix, batch tuning, advanced paths
+- **Topics tab**: ROS 1 and ROS 2 input config with dynamic topic management
+- **Boot tab**: auto-start toggles
+- Save / Save & Restart flow with config patching via MQTT
 
-(Collector work is **not part of this v1 scope**.)
+## Standalone dev mode
+
+`STANDALONE=true node main.js` (or `npm run dev`) starts an embedded MQTT broker — no Transitive agent needed for local testing.
+
+## Tests
+
+- Unit tests: command handling, config validation, queue/dispatcher, bridge config generation, fleet summary
+- Integration tests: config persistence round-trip, Docker lifecycle, watchdog behavior
+
+## Remaining work
+
+1. End-to-end validation on a real robot with ROS + Docker + reduct-bridge
+2. Evaluate containerizing ReductBridge (cleaner than host binary, but ROS access from Docker is complex)
+3. Replace PID-file process management with supervised runtime if needed
