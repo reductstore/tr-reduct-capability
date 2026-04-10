@@ -5,10 +5,23 @@
   "main": "main.js",
   "scripts": {
     "start": "node main.js",
-    "test": "node --test ../test/*.test.js"
+    "dev": "STANDALONE=true node main.js",
+    "test": "node --test ../test/*.test.js",
+    "test:integration": "node --test ../test/integration/*.test.js"
   },
   "dependencies": {
-    "@transitive-sdk/utils": "^0.16.2",
+    "@transitive-sdk/utils": "^0.16.3",
     "mqtt": "^5.10.4"
+  },
+  "devDependencies": {
+    "aedes": "^0.51.3"
+  },
+  "overrides": {
+    "@transitive-sdk/utils": {
+      "jsonwebtoken": "^9.0.3",
+      "lodash": "^4.17.24",
+      "help-me": "^5.0.0",
+      "ws": "^8.18.3"
+    }
   }
 }

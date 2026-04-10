@@ -7,6 +7,14 @@
     "start": "node main.js"
   },
   "dependencies": {
-    "@transitive-sdk/utils": "^0.16.2"
+    "@transitive-sdk/utils": "^0.16.3"
+  },
+  "overrides": {
+    "@transitive-sdk/utils": {
+      "jsonwebtoken": "^9.0.3",
+      "lodash": "^4.17.24",
+      "help-me": "^5.0.0",
+      "ws": "^8.18.3"
+    }
   }
 }

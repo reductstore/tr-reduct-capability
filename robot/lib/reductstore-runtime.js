@@ -7,8 +7,8 @@ const DEFAULTS = {
   containerName: 'reductstore',
   httpPort: 8383,
   dataPath: '/tmp/reductstore-data',
-  authEnabled: false,
-  apiToken: ''
+  authEnabled: true,
+  apiToken: 'transitive-local-token'
 };
 
 function sh(command, args = []) {

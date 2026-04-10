@@ -8,9 +8,11 @@
   "scripts": {
     "start": "./subScript.sh start",
     "cloud": "./subScript.sh cloud",
+    "dev": "npm --prefix robot run dev",
     "dev:robot": "npm --prefix robot run start",
     "dev:cloud": "npm --prefix cloud run start",
-    "test": "npm --prefix robot run test"
+    "test": "npm --prefix robot run test",
+    "test:integration": "npm --prefix robot run test:integration"
   },
   "keywords": [
     "transitive-robotics",
