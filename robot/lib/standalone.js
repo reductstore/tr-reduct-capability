@@ -1,5 +1,3 @@
-"use strict";
-
 const net = require("node:net");
 const http = require("node:http");
 
@@ -9,7 +7,7 @@ async function startStandalone({ mqttPort = 1883, httpPort = 9080 } = {}) {
     aedes = require("aedes")();
   } catch {
     throw new Error(
-      "aedes is required for standalone mode — install with: npm install --save-dev aedes",
+      "aedes is required for standalone mode. Install it with: npm install --save-dev aedes",
     );
   }
 

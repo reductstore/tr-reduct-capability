@@ -1,12 +1,9 @@
 {
-  "name": "@reductstore/tr-reduct-capability-robot",
-  "version": "0.1.0",
   "main": "main.js",
   "scripts": {
-    "start": "node main.js",
+    "start": "node --preserve-symlinks $NODE_ARGS main.js",
     "dev": "STANDALONE=true node main.js",
-    "test": "node --test ../test/*.test.js",
-    "test:integration": "node --test ../test/integration/*.test.js"
+    "test": "node --test ../test/*.test.js"
   },
   "dependencies": {
     "@transitive-sdk/utils": "^0.16.3",
