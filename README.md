@@ -1,110 +1,123 @@
 # tr-reduct-capability
 
-Transitive Robotics capability that runs [ReductStore](https://www.reduct.store/) on a robot and ingests ROS 1 / ROS 2 topics into it via [ReductBridge](https://github.com/reductstore/reduct-bridge).
+Transitive Robotics capability that runs [ReductStore](https://www.reduct.store/)
+and [ReductBridge](https://www.reduct.store/docs/reduct-bridge) as Docker
+containers on a robot. ReductStore is configured through
+[provisioning](https://www.reduct.store/docs/configuration/provisioning)
+environment variables; the bridge is configured with a TOML file you author.
 
-## Features
+This is a deliberately small first version: start/stop/restart two containers,
+edit their config from the portal, done. Robustness comes from Docker's
+`--restart unless-stopped` policy — no watchdog in the capability itself.
 
-- Manages a ReductStore Docker container (start / stop / restart)
-- Manages a ReductBridge host process for ROS topic ingestion
-- Generates ReductBridge TOML config from runtime settings
-- Auto-starts on boot with configurable boot policy
-- Persists config to disk across restarts
-- Process watchdog with exponential backoff recovery
-- Web UI with settings editor for store, bridge, and ROS topics
-- Fleet summary with per-component status breakdown
-- Standalone dev mode with embedded MQTT broker
+It follows the standard Transitive SDK layout (`npm init @transitive-sdk@latest`)
+and publishes to the local registry as `@local/reductstore`.
 
 ## Prerequisites
 
 - Node.js 20+
 - Docker
-- `reduct-bridge` binary on the host (or set `bridge.command` to the binary path)
-- ROS 1 and/or ROS 2 installed locally for the inputs you want to use
-- Transitive agent installed (not needed in standalone mode)
+- A provisioning-capable ReductStore image — default `reduct/store:latest`
+  (1.19+). Note the old `reductstore/reductstore` Docker Hub tags can be stale
+  (e.g. 1.3.2) and silently ignore the `RS_BUCKET_*` variables. Since v1.19 the
+  image runs as a non-root user; the capability handles the bind-mount
+  permissions by running the container as its own uid:gid.
+- For ROS ingestion: ROS running on the host (the bridge uses host networking).
+- Transitive agent installed (not needed in standalone dev mode).
+
+## What it does
+
+- **ReductStore** — runs `reduct/store:latest`, publishing port 8383
+  and persisting `/data`. Auth and the initial bucket are set via provisioning
+  env vars: `RS_API_TOKEN`, `RS_BUCKET_1_NAME`, and optional
+  `RS_BUCKET_1_QUOTA_TYPE` / `RS_BUCKET_1_QUOTA_SIZE`.
+- **ReductBridge** — runs `reduct/bridge:<build>` (default `main-ros2-jazzy`,
+  which carries the nounset entrypoint fix; move to `latest-ros2-jazzy` once
+  that fix reaches the stable branch) with `--network host`, mounting your
+  `config.toml` read-only at `/etc/reduct-bridge/config.toml`. Add as many
+  inputs as you like in the TOML.
 
 ## Quick start
 
 ```bash
-npm --prefix robot install
-npm --prefix cloud install
+npm install          # installs robot deps and builds the web components (dist/)
 npm test
 ```
 
 ### Standalone dev mode (no Transitive agent needed)
 
 ```bash
-npm run dev
+npm run dev          # embedded MQTT :1883 + HTTP :9080; auto-starts the containers
 ```
 
-Starts an embedded MQTT broker on port 1883 and an HTTP status endpoint on port 9080. ReductStore auto-starts via Docker.
-
-### With Transitive agent
+### Full dev loop (robot + web + cloud, with the agent)
 
 ```bash
-npm run dev:robot    # robot part
-npm run dev:cloud    # cloud part
+npm run dev:start    # transitiveDev tmux: robot + web build + cloud container
+npx transitiveDev web   # web components only (rebuild web/*.jsx → dist/)
 ```
 
-## Project structure
+## Configuration
 
-```
-robot/          Robot runtime: store + bridge lifecycle, config, watchdog
-cloud/          Cloud part: fleet summary aggregation
-web/            Web components: device settings editor, fleet summary
-test/           Unit tests
-test/integration/  Integration tests (config persistence, Docker lifecycle, watchdog)
-docs/           Capability spec
-```
+Edit everything from the device page in the portal (a small settings form), or
+publish the whole config as one JSON string to `/config/json`. It is persisted
+to `~/.tr-reduct-capability/config.json` and reapplied on restart.
 
-## Runtime config
-
-Config is published and editable via the web UI, or by writing to MQTT paths:
-
-| Path | Description |
-|---|---|
-| `/config/runtime/store` | ReductStore container settings (image, port, auth) |
-| `/config/runtime/bridge` | ReductBridge process settings (command, bucket, batch tuning) |
-| `/config/runtime/ros1` | ROS 1 input (enabled, URI, topics) |
-| `/config/runtime/ros2` | ROS 2 input (enabled, domain ID, schema paths, topics) |
-| `/config/runtime/boot` | Boot policy (auto-start store, auto-start bridge) |
-
-Config is persisted to `~/.tr-reduct-capability/config.json` and reapplied on restart.
-
-### Example: add a ROS 2 topic
-
-```json
+```jsonc
 {
-  "ros2": {
+  "autoStart": true,
+  "store": {
+    "image": "reduct/store:latest",
+    "httpPort": 8383,
+    "dataPath": "~/.tr-reduct-capability/reductstore-data",
+    "apiToken": "transitive-local-token",
+    "bucket": { "name": "robot-data", "quotaType": "NONE", "quotaSize": "" }
+  },
+  "bridge": {
     "enabled": true,
-    "domainId": 0,
-    "topics": [{ "name": "/scan" }, { "name": "/camera/image_raw" }]
+    "image": "reduct/bridge:main-ros2-jazzy",
+    "rosDomainId": 0,
+    "mounts": [],           // extra host dirs to mount ro (e.g. ROS 2 schemas)
+    "toml": "…bridge config.toml…"
   }
 }
 ```
 
+The bridge `toml` is written verbatim to disk and mounted into the container, so
+it supports any inputs ReductBridge understands (ROS 1/2, MQTT, HTTP, …). Keep
+its `[[remotes.reduct]]` `token_api` / `bucket` in sync with the store settings.
+
 ## Commands
 
-Send via MQTT or the web UI:
+Send `start` / `stop` / `restart` from the UI, or publish
+`{"action":"start","requestId":"…"}` to `/commands/request`.
 
 | Command | Effect |
 |---|---|
-| `start` | Start ReductStore, then start ReductBridge if ROS inputs are configured |
+| `start` | Start ReductStore, wait until it is alive, then start the bridge (if enabled) |
 | `stop` | Stop bridge, then stop store |
 | `restart` | Stop bridge → restart store → start bridge |
 
 ## Device status
 
-Published to `/device/status/state`:
+Published under `/device`: `state` (`running` / `stopped` / `error`),
+`message`, `store/{running,alive,image}`, `bridge/{running,enabled,image}`,
+and `config/json` (current config, for the UI to seed from).
 
-| State | Meaning |
-|---|---|
-| `running` | Store is running; bridge is running or not needed |
-| `error` | Store failed, or bridge is configured but not running |
-| `stopped` | Store is stopped |
+## Project structure
+
+```
+robot/lib/config.js   Config defaults, load/save (disk), deep-merge
+robot/lib/store.js    ReductStore container: provisioning env, start/stop/status
+robot/lib/bridge.js   ReductBridge container: TOML file, start/stop/status
+robot/main.js         MQTT wiring, command handling, status publishing
+cloud/                Fleet summary aggregation
+web/                  Device settings UI + fleet summary
+test/                 Unit tests
+```
 
 ## Tests
 
 ```bash
-npm test                    # unit tests (26 tests)
-npm run test:integration    # integration tests (16 tests, needs Docker)
+npm test
 ```

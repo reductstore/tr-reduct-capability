@@ -1,17 +1,21 @@
 {
-  "name": "@reductstore/tr-reduct-capability",
+  "name": "@local/reductstore",
   "version": "0.1.0",
-  "description": "Transitive Robotics capability package for deploying and managing ReductStore",
-  "main": "src/index.js",
+  "description": "Records ROS, Zenoh, MQTT, and logs into ReductStore on the robot and replicates to the cloud.",
+  "main": "main.js",
   "type": "commonjs",
   "scripts": {
-    "start": "./subScript.sh start",
-    "cloud": "./subScript.sh cloud",
+    "start": "./subScript",
+    "preinstall": "./subScript",
+    "install": "./subScript",
+    "postinstall": "./subScript",
+    "prepare": "transitiveDev web",
+    "prepack": "transitiveDev prepack",
+    "cloud": "npm --prefix cloud start",
     "dev": "npm --prefix robot run dev",
-    "dev:robot": "npm --prefix robot run start",
-    "dev:cloud": "npm --prefix cloud run start",
-    "test": "npm --prefix robot run test",
-    "test:integration": "npm --prefix robot run test:integration"
+    "dev:start": "transitiveDev tmux",
+    "dev:install": "npm --prefix robot install",
+    "test": "npm --prefix robot run test"
   },
   "keywords": [
     "transitive-robotics",
@@ -24,5 +28,14 @@
   },
   "transitiverobotics": {
     "title": "ReductStore"
+  },
+  "devDependencies": {
+    "@transitive-sdk/utils-caps": "^0.2.12",
+    "@transitive-sdk/utils-web": "^0.16.3",
+    "lodash": "^4.17.21",
+    "react": "^18.3.1",
+    "react-bootstrap": "^2.1.2",
+    "react-dom": "^18.3.1",
+    "react-web-component-style-loader": "^0.1.4-alpha"
   }
 }

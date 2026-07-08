@@ -137,3 +137,10 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Transitive capability
+cloud/certs
+*.pem*
+client.crt
+client.csr
+client.key

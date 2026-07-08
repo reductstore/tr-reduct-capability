@@ -1,0 +1,13 @@
+test
+web/
+docs/
+.npmrc
+.env
+*.log
+**/node_modules
+**/package-lock.json
+**/certs
+client.crt
+client.csr
+client.key
+dist/*.js.map
