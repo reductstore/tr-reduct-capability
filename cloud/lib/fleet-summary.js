@@ -1,46 +1,31 @@
-"use strict";
+// Aggregate one org's devices into a fleet summary. `parts` is the capability
+// path split (e.g. ["@local", "reductstore", "0.1"]) used to reach each device's
+// published /device data in the nested data tree.
+function computeFleetSummary(devices, parts) {
+  const summary = {
+    total: 0,
+    running: 0,
+    stopped: 0,
+    error: 0,
+    storeRunning: 0,
+    bridgeRunning: 0,
+  };
 
-function computeFleetSummary(root, fullName) {
-  let running = 0;
-  let error = 0;
-  let stopped = 0;
-  const store = { running: 0, stopped: 0, error: 0 };
-  const bridge = { running: 0, stopped: 0, error: 0, disabled: 0 };
-  const ingestion = { configured: 0, notConfigured: 0 };
+  for (const [deviceId, tree] of Object.entries(devices || {})) {
+    if (deviceId === "_fleet") continue;
+    const dev = parts.reduce((o, k) => (o == null ? o : o[k]), tree)?.device;
+    if (!dev) continue;
+    summary.total += 1;
 
-  for (const org of Object.values(root || {})) {
-    for (const device of Object.values(org || {})) {
-      const cap = device?.[fullName];
-      const state = cap?.device?.status?.state;
-      if (state === "running") running += 1;
-      else if (state === "error") error += 1;
-      else stopped += 1;
+    if (dev.state === "running") summary.running += 1;
+    else if (dev.state === "error") summary.error += 1;
+    else summary.stopped += 1;
 
-      const storeState = cap?.device?.runtime?.store?.state;
-      if (storeState === "running") store.running += 1;
-      else if (storeState === "error") store.error += 1;
-      else store.stopped += 1;
-
-      const bridgeState = cap?.device?.runtime?.bridge?.state;
-      const bridgeConfigured = cap?.device?.runtime?.bridge?.configured;
-      if (bridgeState === "disabled") bridge.disabled += 1;
-      else if (bridgeState === "running") bridge.running += 1;
-      else if (bridgeState === "error") bridge.error += 1;
-      else bridge.stopped += 1;
-
-      if (bridgeConfigured) ingestion.configured += 1;
-      else ingestion.notConfigured += 1;
-    }
+    if (dev.store?.running) summary.storeRunning += 1;
+    if (dev.bridge?.running) summary.bridgeRunning += 1;
   }
 
-  return {
-    runningCount: running,
-    errorCount: error,
-    stoppedCount: stopped,
-    store,
-    bridge,
-    ingestion,
-  };
+  return summary;
 }
 
 module.exports = { computeFleetSummary };

@@ -1,5 +1,3 @@
-"use strict";
-
 const { Capability, getLogger } = require("@transitive-sdk/utils");
 const { computeFleetSummary } = require("./lib/fleet-summary");
 
@@ -9,47 +7,31 @@ log.setLevel(process.env.LOG_LEVEL || "info");
 class CloudCapability extends Capability {
   constructor() {
     super(() => {
-      this.mqttSync.subscribe(`/+/+/${this.fullName}/device/status`);
-      this.mqttSync.subscribe(`/+/+/${this.fullName}/device/runtime`);
+      this.mqttSync.subscribe(`/+/+/${this.fullName}/device`);
       this.mqttSync.publish(`/+/+/${this.fullName}/cloud/fleet`);
 
       this.data.subscribePath(
-        `/+org/+device/${this.fullName}/device/status/state`,
-        () => {
-          this.publishFleetSummary();
-        },
+        `/+org/+device/${this.fullName}/device/state`,
+        () => this.publishFleet(),
       );
 
-      this.data.subscribePath(
-        `/+org/+device/${this.fullName}/device/runtime/store/state`,
-        () => {
-          this.publishFleetSummary();
-        },
-      );
-
-      this.data.subscribePath(
-        `/+org/+device/${this.fullName}/device/runtime/bridge/state`,
-        () => {
-          this.publishFleetSummary();
-        },
-      );
-
-      setInterval(() => this.publishFleetSummary(), 10000);
+      setInterval(() => this.publishFleet(), 10000);
       log.info(`cloud capability started: ${this.fullName}`);
     });
   }
 
-  publishFleetSummary() {
+  // Publish a per-org fleet summary under that org's _fleet device, where the
+  // fleet web component reads it.
+  publishFleet() {
     const root = this.data.get() || {};
-    const summary = computeFleetSummary(root, this.fullName);
-
-    this.data.update("/cloud/fleet/runningCount", summary.runningCount);
-    this.data.update("/cloud/fleet/errorCount", summary.errorCount);
-    this.data.update("/cloud/fleet/stoppedCount", summary.stoppedCount);
-    this.data.update("/cloud/fleet/store", summary.store);
-    this.data.update("/cloud/fleet/bridge", summary.bridge);
-    this.data.update("/cloud/fleet/ingestion", summary.ingestion);
-    this.data.update("/cloud/fleet/updatedAt", Date.now());
+    const parts = this.fullName.split("/");
+    for (const [org, devices] of Object.entries(root)) {
+      const summary = computeFleetSummary(devices, parts);
+      for (const [key, value] of Object.entries(summary)) {
+        this.data.update(`/${org}/_fleet/${this.fullName}/cloud/fleet/${key}`, value);
+      }
+      this.data.update(`/${org}/_fleet/${this.fullName}/cloud/fleet/updatedAt`, Date.now());
+    }
   }
 }
 

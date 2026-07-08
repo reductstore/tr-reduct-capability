@@ -1,10 +1,8 @@
 {
-  "name": "@reductstore/tr-reduct-capability-cloud",
-  "version": "0.1.0",
   "private": true,
   "main": "main.js",
   "scripts": {
-    "start": "node main.js"
+    "start": "while (true); do node main.js; sleep 2; done;"
   },
   "dependencies": {
     "@transitive-sdk/utils": "^0.16.3"
