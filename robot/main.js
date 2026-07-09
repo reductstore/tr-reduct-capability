@@ -1,3 +1,4 @@
+const os = require("node:os");
 const mqtt = require("mqtt");
 const { MqttSync, getLogger, getPackageVersionNamespace } = require("@transitive-sdk/utils");
 const store = require("./lib/store");
@@ -35,6 +36,9 @@ function publishConfig() {
   const d = mqttSync.data;
   d.update("/device/config/json", JSON.stringify(config));
   d.update("/device/store/image", config.store.image);
+  // Host + port so the web UI can link to the store's web console.
+  d.update("/device/store/host", os.hostname());
+  d.update("/device/store/httpPort", config.store.httpPort);
   d.update("/device/bridge/enabled", !!config.bridge.enabled);
   d.update("/device/bridge/image", config.bridge.image);
 }
@@ -48,6 +52,7 @@ async function publishStatus(message) {
     .status(config.bridge)
     .catch(() => ({ running: false, enabled: !!config.bridge.enabled }));
   const isAlive = storeStatus.running ? await store.alive(config.store) : false;
+  const replications = isAlive ? await store.getReplications(config.store).catch(() => []) : [];
 
   const d = mqttSync.data;
   d.update("/device/state", deriveState(storeStatus, bridgeStatus));
@@ -55,31 +60,33 @@ async function publishStatus(message) {
   d.update("/device/store/running", storeStatus.running);
   d.update("/device/store/alive", isAlive);
   d.update("/device/store/containerId", storeStatus.containerId || null);
+  d.update("/device/store/replications", replications);
   d.update("/device/bridge/running", bridgeStatus.running);
+}
+
+// Start the store, wait for it, reconcile replication tasks, then the bridge.
+async function bringUp(message) {
+  await store.start(config.store);
+  const ready = await store.waitUntilAlive(config.store);
+  if (!ready) throw new Error("ReductStore did not become ready in time");
+  const failed = await store.reconcileReplications(config.store);
+  if (config.bridge.enabled) await bridge.start(config.bridge);
+  await publishStatus(
+    failed.length ? `${message} (replication failed: ${failed.join(", ")})` : message,
+  );
 }
 
 async function runCommand(action) {
   try {
     if (action === "start") {
-      await store.start(config.store);
-      if (config.bridge.enabled) {
-        const ready = await store.waitUntilAlive(config.store);
-        if (!ready) throw new Error("ReductStore did not become ready in time");
-        await bridge.start(config.bridge);
-      }
-      await publishStatus(`started`);
+      await bringUp("started");
     } else if (action === "stop") {
       await bridge.stop(config.bridge);
       await store.stop(config.store);
       await publishStatus("stopped");
     } else if (action === "restart") {
       await bridge.stop(config.bridge);
-      await store.start(config.store);
-      if (config.bridge.enabled) {
-        await store.waitUntilAlive(config.store);
-        await bridge.start(config.bridge);
-      }
-      await publishStatus("restarted");
+      await bringUp("restarted");
     } else {
       log.warn(`unknown command: ${action}`);
     }

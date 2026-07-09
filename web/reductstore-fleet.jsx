@@ -34,7 +34,11 @@ const Fleet = ({ jwt, id, host, ssl }) => {
   return (
     <div>
       <StatusComponent />
-      <h4>{capabilityName} fleet</h4>
+      <h4>Fleet-wide ReductStore</h4>
+      <p style={{ fontSize: "13px", color: "#444", margin: "6px 0" }}>
+        There is no UI for controlling fleet-wide aspects of ReductStore yet.
+        Please use the device-specific UIs (under "Devices", Device, "reductstore").
+      </p>
       <table style={{ borderCollapse: "collapse", width: "100%", maxWidth: "360px", fontSize: "13px" }}>
         <thead>
           <tr>

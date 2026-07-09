@@ -30,7 +30,10 @@ and publishes to the local registry as `@local/reductstore`.
 - **ReductStore** — runs `reduct/store:latest`, publishing port 8383
   and persisting `/data`. Auth and the initial bucket are set via provisioning
   env vars: `RS_API_TOKEN`, `RS_BUCKET_1_NAME`, and optional
-  `RS_BUCKET_1_QUOTA_TYPE` / `RS_BUCKET_1_QUOTA_SIZE`.
+  `RS_BUCKET_1_QUOTA_TYPE` / `RS_BUCKET_1_QUOTA_SIZE`. Replication tasks are
+  reconciled through the store API after start (create, update, and delete to
+  match config), and any extra `RS_*` variable can be added as a free form env
+  var.
 - **ReductBridge** — runs `reduct/bridge:<build>` (default `main-ros2-jazzy`,
   which carries the nounset entrypoint fix; move to `latest-ros2-jazzy` once
   that fix reaches the stable branch) with `--network host`, mounting your
@@ -71,10 +74,16 @@ to `~/.tr-reduct-capability/config.json` and reapplied on restart.
     "httpPort": 8383,
     "dataPath": "~/.tr-reduct-capability/reductstore-data",
     "apiToken": "transitive-local-token",
-    "bucket": { "name": "robot-data", "quotaType": "NONE", "quotaSize": "" }
+    "bucket": { "name": "robot-data", "quotaType": "FIFO", "quotaSize": "1GB" },
+    "replications": [
+      { "name": "to-cloud", "srcBucket": "robot-data", "dstBucket": "fleet",
+        "dstHost": "https://play.reduct.store", "dstToken": "…",
+        "entries": "", "when": "" }
+    ],
+    "env": [ { "key": "RS_LOG_LEVEL", "value": "INFO" } ]
   },
   "bridge": {
-    "enabled": true,
+    "enabled": false,
     "image": "reduct/bridge:main-ros2-jazzy",
     "rosDomainId": 0,
     "mounts": [],           // extra host dirs to mount ro (e.g. ROS 2 schemas)

@@ -30,7 +30,10 @@ config builder — robustness comes from Docker's `--restart unless-stopped`.
 - `lib/config.js` — defaults + load/save to `~/.tr-reduct-capability/config.json`
   (deep-merge, atomic write, falls back to defaults on a corrupt file).
 - `lib/store.js` — ReductStore container (`reduct/store:latest`). `buildRunArgs`
-  emits provisioning env (`RS_API_TOKEN`, `RS_BUCKET_1_*`) and runs the container
+  emits provisioning env (`RS_API_TOKEN`, `RS_BUCKET_1_*`, plus any free form extra
+  env vars). `reconcileReplications` syncs replication tasks against the store API
+  (create, update, delete) after start; `getReplications` reports their live
+  status. `buildRunArgs` runs the container
   as the host `uid:gid` (v1.19+ images are non-root, so a bind-mounted data dir
   owned by another user is otherwise unwritable). `waitUntilAlive` polls
   `HEAD /api/v1/alive`.
@@ -56,7 +59,8 @@ republishes on change and every 10s.
 ## Web part (`web/`)
 
 - `reductstore-device.jsx` — status line + Start/Stop/Restart, a store
-  provisioning form (image, port, data path, token, bucket, quota), and a bridge
+  provisioning form (image, port, data path, token, bucket, quota, replication
+  tasks, and extra env vars), and a bridge
   section (enabled, image, ROS_DOMAIN_ID, extra mounts, and a `config.toml`
   textarea). Save / Save & Restart writes the whole config to `/config/json`.
 - `reductstore-fleet.jsx` — the fleet summary table.

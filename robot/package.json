@@ -7,7 +7,8 @@
   },
   "dependencies": {
     "@transitive-sdk/utils": "^0.16.3",
-    "mqtt": "^5.10.4"
+    "mqtt": "^5.10.4",
+    "reduct-js": "^1.20.0"
   },
   "devDependencies": {
     "aedes": "^0.51.3"

@@ -10,8 +10,11 @@ test("defaults have store provisioning + a bridge TOML", () => {
   const c = defaults();
   assert.equal(c.store.apiToken, "transitive-local-token");
   assert.equal(c.store.bucket.name, "robot-data");
+  assert.equal(c.store.bucket.quotaType, "FIFO"); // FIFO 1GB by default
+  assert.equal(c.store.bucket.quotaSize, "1GB");
   assert.ok(c.bridge.toml.includes("[remotes.reduct.local]"));
   assert.ok(c.bridge.toml.includes("prefix ="));
+  assert.equal(c.bridge.enabled, false); // bridge off until the operator enables it
   assert.equal(c.autoStart, true);
 });
 

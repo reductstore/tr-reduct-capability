@@ -1,5 +1,6 @@
 const { execFile } = require("node:child_process");
 const fs = require("node:fs");
+const { Client } = require("reduct-js");
 
 // Since v1.19 the ReductStore image runs as an unprivileged user, so run the
 // container as the uid and gid that own the data dir or the bind mount is not
@@ -47,6 +48,11 @@ function buildRunArgs(store) {
         args.push("-e", `RS_BUCKET_1_QUOTA_SIZE=${bucket.quotaSize}`);
       }
     }
+  }
+
+  // Arbitrary extra env vars, applied last so an operator can override anything.
+  for (const e of store.env || []) {
+    if (e && e.key) args.push("-e", `${e.key}=${e.value ?? ""}`);
   }
 
   args.push(store.image);
@@ -102,4 +108,79 @@ async function start(store, runner = sh) {
   return status(store, runner);
 }
 
-module.exports = { sh, buildRunArgs, status, alive, waitUntilAlive, start, stop };
+function storeClient(store) {
+  return new Client(`http://127.0.0.1:${store.httpPort}`, { apiToken: store.apiToken });
+}
+
+// Map a config replication task to a reduct-js ReplicationSettings.
+function replicationSettings(r) {
+  const s = {
+    srcBucket: r.srcBucket,
+    dstBucket: r.dstBucket,
+    dstHost: r.dstHost,
+    entries: r.entries ? r.entries.split(",").map((e) => e.trim()).filter(Boolean) : [],
+  };
+  if (r.dstToken) s.dstToken = r.dstToken;
+  if (r.when && r.when.trim()) {
+    try {
+      s.when = JSON.parse(r.when);
+    } catch {
+      // invalid JSON condition is left out; reconcile surfaces the failed task
+    }
+  }
+  return s;
+}
+
+// Live replication status, mapped to plain JSON (pendingRecords is a bigint).
+async function getReplications(store, client = storeClient(store)) {
+  try {
+    const list = await client.getReplicationList();
+    return list.map((r) => ({
+      name: r.name,
+      mode: r.mode,
+      is_active: r.isActive,
+      is_provisioned: r.isProvisioned,
+      pending_records: Number(r.pendingRecords),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// Make the store's replication tasks match config: create missing tasks, update
+// existing ones, and delete tasks we manage that are no longer in config.
+// Provisioned tasks are never touched. Returns the names that failed.
+async function reconcileReplications(store, client = storeClient(store)) {
+  const desired = (store.replications || []).filter(
+    (r) => r && r.name && r.srcBucket && r.dstBucket && r.dstHost,
+  );
+  const desiredNames = new Set(desired.map((r) => r.name));
+  const current = await getReplications(store, client);
+  const currentNames = new Set(current.map((t) => t.name));
+  const failed = [];
+
+  for (const t of current) {
+    if (desiredNames.has(t.name) || t.is_provisioned) continue;
+    try {
+      await client.deleteReplication(t.name);
+    } catch {
+      failed.push(t.name);
+    }
+  }
+
+  for (const r of desired) {
+    try {
+      if (currentNames.has(r.name)) await client.updateReplication(r.name, replicationSettings(r));
+      else await client.createReplication(r.name, replicationSettings(r));
+    } catch {
+      failed.push(r.name);
+    }
+  }
+
+  return failed;
+}
+
+module.exports = {
+  sh, buildRunArgs, status, alive, waitUntilAlive, start, stop,
+  replicationSettings, getReplications, reconcileReplications,
+};

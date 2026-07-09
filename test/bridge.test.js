@@ -30,6 +30,28 @@ test("buildRunArgs adds extra read-only mounts", () => {
   assert.match(s, /-v \/opt\/ros_msgs:\/opt\/ros_msgs:ro/);
 });
 
+test("buildRunArgs adds ROS env only for ROS images", () => {
+  const iot = joined(bridge.buildRunArgs({ ...defaults().bridge, image: "reduct/bridge:main-iot" }, "/t.toml"));
+  assert.doesNotMatch(iot, /ROS_DOMAIN_ID/);
+  assert.doesNotMatch(iot, /HOME=\/tmp/);
+  assert.doesNotMatch(iot, /FASTDDS/);
+
+  const ros1 = joined(bridge.buildRunArgs({ ...defaults().bridge, image: "reduct/bridge:main-ros1" }, "/t.toml"));
+  assert.match(ros1, /-e HOME=\/tmp/); // ROS 1 needs a writable home
+  assert.doesNotMatch(ros1, /ROS_DOMAIN_ID/); // but not the ROS 2 DDS env
+  assert.doesNotMatch(ros1, /FASTDDS/);
+});
+
+test("buildRunArgs appends extra bridge env vars", () => {
+  const b = { ...defaults().bridge, env: [
+    { key: "RMW_IMPLEMENTATION", value: "rmw_cyclonedds_cpp" },
+    { key: "", value: "skip" },
+  ] };
+  const s = joined(bridge.buildRunArgs(b, "/tmp/bridge.toml"));
+  assert.match(s, /-e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp/);
+  assert.doesNotMatch(s, /=skip/);
+});
+
 test("writeToml writes the operator TOML verbatim", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-toml-"));
   const file = path.join(dir, "bridge.toml");
@@ -56,18 +78,41 @@ test("status treats a restarting container as not running", async () => {
   assert.equal(s.restartCount, 4);
 });
 
+const noWait = { graceMs: 0, settleMs: 0 };
+
 test("start throws when the bridge crash loops (e.g. bad TOML)", async () => {
   const runner = async (cmd, args) =>
     args[0] === "inspect" ? "id|restarting|true|3|img" : "";
   await assert.rejects(
-    () => bridge.start({ ...defaults().bridge, enabled: true }, runner, { graceMs: 0 }),
+    () => bridge.start({ ...defaults().bridge, enabled: true }, runner, noWait),
     /failed to start/,
   );
+});
+
+test("start throws when the restart count keeps climbing", async () => {
+  let n = 0;
+  const runner = async (cmd, args) => {
+    if (args[0] !== "inspect") return "";
+    n += 1;
+    return `id|running|false|${n}|img`; // rc climbs across the two samples
+  };
+  await assert.rejects(
+    () => bridge.start({ ...defaults().bridge, enabled: true }, runner, noWait),
+    /failed to start/,
+  );
+});
+
+test("start tolerates a transient crash that recovered", async () => {
+  // running with a nonzero but stable restart count = crashed once, recovered
+  const runner = async (cmd, args) =>
+    args[0] === "inspect" ? "id|running|false|1|img" : "";
+  const result = await bridge.start({ ...defaults().bridge, enabled: true }, runner, noWait);
+  assert.equal(result.running, true);
 });
 
 test("start succeeds when the container stays up", async () => {
   const runner = async (cmd, args) =>
     args[0] === "inspect" ? "abc|running|false|0|img" : "";
-  const result = await bridge.start({ ...defaults().bridge, enabled: true }, runner, { graceMs: 0 });
+  const result = await bridge.start({ ...defaults().bridge, enabled: true }, runner, noWait);
   assert.equal(result.running, true);
 });

@@ -29,13 +29,15 @@ function writeToml(bridge, tomlPath = BRIDGE_TOML_PATH) {
   return tomlPath;
 }
 
-// Host networking reaches ReductStore and the host ROS graph. Fast DDS is forced
-// onto UDP because the container runs as a different user than the host ROS
-// nodes, so its shared memory segments are not accessible and data would not
-// flow (discovery still works, but messages never arrive). HOME points at a
-// writable dir because the image user home is /nonexistent and ROS 2 aborts if
-// it cannot create its log dir.
+// Host networking reaches ReductStore and the host ROS graph. The ROS env below
+// is added only for ROS images: a writable HOME (ROS logs to ~/.ros/log and the
+// image user home is /nonexistent) for ROS 1 and 2, plus the DDS domain and UDP
+// transport for ROS 2 (the container runs as a different user than host ROS
+// nodes, so shared memory is not reachable and data would not flow).
 function buildRunArgs(bridge, tomlPath = BRIDGE_TOML_PATH) {
+  const image = bridge.image || "";
+  const isRos = /ros/i.test(image);
+  const isRos2 = /ros2/i.test(image);
   const args = [
     "run",
     "-d",
@@ -45,17 +47,20 @@ function buildRunArgs(bridge, tomlPath = BRIDGE_TOML_PATH) {
     "unless-stopped",
     "--network",
     "host",
-    "-e",
-    `ROS_DOMAIN_ID=${bridge.rosDomainId ?? 0}`,
-    "-e",
-    "HOME=/tmp",
-    "-e",
-    "FASTDDS_BUILTIN_TRANSPORTS=UDPv4",
     "-v",
     `${tomlPath}:${CONTAINER_CONFIG_PATH}:ro`,
   ];
+  if (isRos) args.push("-e", "HOME=/tmp");
+  if (isRos2) {
+    args.push("-e", `ROS_DOMAIN_ID=${bridge.rosDomainId ?? 0}`);
+    args.push("-e", "FASTDDS_BUILTIN_TRANSPORTS=UDPv4");
+  }
   for (const mount of bridge.mounts || []) {
     if (mount) args.push("-v", `${mount}:${mount}:ro`);
+  }
+  // Extra env vars, applied last so an operator can override anything above.
+  for (const e of bridge.env || []) {
+    if (e && e.key) args.push("-e", `${e.key}=${e.value ?? ""}`);
   }
   args.push(bridge.image, "reduct-bridge", CONTAINER_CONFIG_PATH);
   return args;
@@ -90,26 +95,30 @@ async function stop(bridge, runner = sh) {
   return { running: false, enabled: !!bridge.enabled };
 }
 
-async function start(bridge, runner = sh, { graceMs = 3000 } = {}) {
+async function start(bridge, runner = sh, { graceMs = 3000, settleMs = 2000 } = {}) {
   if (!bridge.enabled) return stop(bridge, runner);
 
   await stop(bridge, runner);
   const tomlPath = writeToml(bridge);
   await runner("docker", buildRunArgs(bridge, tomlPath));
 
-  // Give a bad config or an early crash time to surface, then confirm it stayed
-  // up. A crash loop restarts the container, so a nonzero restart count is a
-  // failure even if it is momentarily running again.
+  // A bad config crash-loops forever; a transient error (e.g. the store not
+  // serving yet) crashes once and the restart policy recovers it. Sample twice:
+  // the bridge is healthy if it is running and its restart count has stopped
+  // climbing, so one early crash that recovered is not reported as a failure.
   if (graceMs) await new Promise((r) => setTimeout(r, graceMs));
-  const result = await status(bridge, runner);
-  if (!result.running || result.restartCount > 0) {
+  const first = await status(bridge, runner);
+  if (settleMs) await new Promise((r) => setTimeout(r, settleMs));
+  const second = await status(bridge, runner);
+
+  if (!second.running || second.restartCount > first.restartCount) {
     const logs = await fetchLogs(bridge.containerName);
     await runner("docker", ["rm", "-f", bridge.containerName]).catch(() => {});
     throw new Error(
       `reduct-bridge failed to start${logs ? `:\n${logs}` : ""}`,
     );
   }
-  return result;
+  return second;
 }
 
 module.exports = {
