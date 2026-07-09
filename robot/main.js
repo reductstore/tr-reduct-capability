@@ -28,23 +28,18 @@ function deriveState(storeStatus, bridgeStatus) {
   return "error";
 }
 
-// Publish config and the fields derived from it. No docker calls, so this stays
-// fast and reliable even when the container polling is slow or busy. Runs on its
-// own loop and on every config change so the UI always has the config quickly.
+// Config fields only (no docker calls), so a slow docker never delays the UI.
 function publishConfig() {
   if (!mqttSync) return;
   const d = mqttSync.data;
   d.update("/device/config/json", JSON.stringify(config));
   d.update("/device/store/image", config.store.image);
-  // Host + port so the web UI can link to the store's web console.
   d.update("/device/store/host", os.hostname());
   d.update("/device/store/httpPort", config.store.httpPort);
   d.update("/device/bridge/enabled", !!config.bridge.enabled);
   d.update("/device/bridge/image", config.bridge.image);
 }
 
-// Publish live container status. Does docker calls, so it can be slow; kept
-// separate from publishConfig so a slow docker never blocks the config.
 async function publishStatus(message) {
   if (!mqttSync) return;
   const storeStatus = await store.status(config.store).catch(() => ({ running: false }));
@@ -64,7 +59,6 @@ async function publishStatus(message) {
   d.update("/device/bridge/running", bridgeStatus.running);
 }
 
-// Start the store, wait for it, reconcile replication tasks, then the bridge.
 async function bringUp(message) {
   await store.start(config.store);
   const ready = await store.waitUntilAlive(config.store);

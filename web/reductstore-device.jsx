@@ -144,7 +144,6 @@ const sectionStyle = (dirty) =>
     ? { ...section, borderColor: "#e0a458", background: "#fffdf5" }
     : section;
 const btn = { padding: "6px 14px", margin: "4px 4px 4px 0", cursor: "pointer" };
-// Action-bar buttons: greyed and non-clickable when disabled so it is obvious.
 const barBtn = (on) => ({
   padding: "6px 14px",
   borderRadius: "3px",
@@ -373,8 +372,7 @@ const Device = ({ jwt, id, host, ssl }) => {
     ) || {};
   const remoteJson = dev.config?.json;
 
-  // Load config once it arrives from the robot. The form stays gated until then
-  // so a stale default is never saved over the device config.
+  // Load config once it arrives; the form stays gated until then.
   useEffect(() => {
     if (remoteJson && !cfg) {
       try {
@@ -412,7 +410,6 @@ const Device = ({ jwt, id, host, ssl }) => {
     flash(`Sending ${action}…`);
   };
 
-  // Save the edited config to the robot and restart so it takes effect.
   const apply = () => {
     if (!mqttSync || !cfg) return;
     mqttSync.data.update(`${prefixVersion}/config/json`, JSON.stringify(cfg));
@@ -496,8 +493,7 @@ const Device = ({ jwt, id, host, ssl }) => {
     cfg && BRIDGE_IMAGES.some((im) => im.value === cfg.bridge.image);
   const bridgeIsRos2 = cfg && /ros2/i.test(cfg.bridge.image || "");
 
-  // Change the image and, only if the TOML is still an unedited template, swap in
-  // the template for the new input family so it stays consistent.
+  // Swap the template too when the TOML is still an unedited template.
   const changeImage = (image) => {
     const tmpl = templateForImage(image);
     const bridge = { ...cfg.bridge, image };
@@ -523,7 +519,6 @@ const Device = ({ jwt, id, host, ssl }) => {
   const dirty =
     cfg != null && remoteJson != null && JSON.stringify(cfg) !== remoteJson;
 
-  // Per-section dirty flags, so the box that changed can be highlighted.
   let remote = null;
   try {
     remote = remoteJson ? JSON.parse(remoteJson) : null;
@@ -541,7 +536,6 @@ const Device = ({ jwt, id, host, ssl }) => {
     !!cfg && !!remote && differs(cfg.store.replications, remote.store?.replications);
   const bridgeDirty = !!cfg && !!remote && differs(cfg.bridge, remote.bridge);
 
-  // Revert just one section's edits back to what the device currently runs.
   const clone = (x) => JSON.parse(JSON.stringify(x));
   const discardStore = () =>
     remote &&
@@ -585,8 +579,7 @@ const Device = ({ jwt, id, host, ssl }) => {
           {" · "}bridge: <b>{bridgeText}</b>
         </span>
       </div>
-      {/* One status line: your just-sent action (blue), settling into the
-          robot's actual result (grey) or an error (red). */}
+      {/* Your action (blue), settling into the robot's result (grey) or error (red). */}
       {(feedback || dev.message) && (
         <pre
           style={{

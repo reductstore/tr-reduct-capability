@@ -6,9 +6,8 @@ const STATE_DIR = process.env.STATE_DIR || path.join(os.homedir(), ".tr-reduct-c
 const CONFIG_PATH = process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
 const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
 
-// Kept identical to the ROS 2 starter template in web/reductstore-device.jsx so a
-// fresh config is recognized as an unedited template (enables template auto-swap
-// when the image family changes).
+// Keep identical to the ROS 2 template in web/reductstore-device.jsx (template
+// auto-swap treats a matching TOML as unedited).
 const DEFAULT_BRIDGE_TOML = `# ReductBridge config: https://www.reduct.store/docs/reduct-bridge
 # Destination: the ReductStore running on this robot.
 [remotes.reduct.local]
@@ -42,22 +41,15 @@ function defaults() {
       dataPath: path.join(STATE_DIR, "reductstore-data"),
       apiToken: "transitive-local-token",
       bucket: { name: "robot-data", quotaType: "FIFO", quotaSize: "1GB" },
-      // Replication tasks, reconciled against the store's API after start (see
-      // store.js). Each: { name, srcBucket, dstBucket, dstHost, dstToken,
-      // entries, when }.
       replications: [],
-      // Extra env vars applied to the store container, as { key, value } pairs.
       env: [],
     },
     bridge: {
-      // Off by default: a fresh install runs only the store. The operator
-      // enables the bridge after choosing an image and configuring its input.
-      enabled: false,
+      enabled: false, // operator enables it after configuring an input
       image: "reduct/bridge:main-ros2-jazzy",
       containerName: "reduct-bridge",
       rosDomainId: 0,
       mounts: [],
-      // Extra env vars for the bridge container, as { key, value } pairs.
       env: [],
       toml: DEFAULT_BRIDGE_TOML,
     },

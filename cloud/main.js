@@ -20,8 +20,7 @@ class CloudCapability extends Capability {
     });
   }
 
-  // Publish a per-org fleet summary under that org's _fleet device, where the
-  // fleet web component reads it.
+  // Per-org summary published under that org's _fleet device (read by the widget).
   publishFleet() {
     const root = this.data.get() || {};
     const parts = this.fullName.split("/");

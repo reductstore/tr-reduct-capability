@@ -14,8 +14,7 @@ function sh(command, args = []) {
   });
 }
 
-// docker logs writes the container's stderr to our stderr, and the bridge
-// prints its config errors there, so capture both streams.
+// Capture both streams: the bridge prints config errors on stderr.
 function fetchLogs(name) {
   return new Promise((resolve) => {
     execFile("docker", ["logs", "--tail", "20", name], { encoding: "utf8" },
@@ -29,11 +28,8 @@ function writeToml(bridge, tomlPath = BRIDGE_TOML_PATH) {
   return tomlPath;
 }
 
-// Host networking reaches ReductStore and the host ROS graph. The ROS env below
-// is added only for ROS images: a writable HOME (ROS logs to ~/.ros/log and the
-// image user home is /nonexistent) for ROS 1 and 2, plus the DDS domain and UDP
-// transport for ROS 2 (the container runs as a different user than host ROS
-// nodes, so shared memory is not reachable and data would not flow).
+// ROS env is image-specific: a writable HOME for ROS (logs to ~/.ros/log), plus
+// the DDS domain and UDP transport for ROS 2 (SHM is unreachable cross-user).
 function buildRunArgs(bridge, tomlPath = BRIDGE_TOML_PATH) {
   const image = bridge.image || "";
   const isRos = /ros/i.test(image);
@@ -58,7 +54,7 @@ function buildRunArgs(bridge, tomlPath = BRIDGE_TOML_PATH) {
   for (const mount of bridge.mounts || []) {
     if (mount) args.push("-v", `${mount}:${mount}:ro`);
   }
-  // Extra env vars, applied last so an operator can override anything above.
+  // extra env last so it can override the above
   for (const e of bridge.env || []) {
     if (e && e.key) args.push("-e", `${e.key}=${e.value ?? ""}`);
   }
@@ -66,9 +62,8 @@ function buildRunArgs(bridge, tomlPath = BRIDGE_TOML_PATH) {
   return args;
 }
 
-// Uses docker inspect, not docker ps: with the restart policy a crash looping
-// container still shows in docker ps, so only State.Status running and not
-// restarting counts as up. restartCount lets the caller catch a crash loop.
+// docker inspect (not ps): a crash-looping container still lists in ps, so only
+// a running, non-restarting container counts as up.
 async function status(bridge, runner = sh) {
   const out = await runner("docker", [
     "inspect",
@@ -102,10 +97,8 @@ async function start(bridge, runner = sh, { graceMs = 3000, settleMs = 2000 } = 
   const tomlPath = writeToml(bridge);
   await runner("docker", buildRunArgs(bridge, tomlPath));
 
-  // A bad config crash-loops forever; a transient error (e.g. the store not
-  // serving yet) crashes once and the restart policy recovers it. Sample twice:
-  // the bridge is healthy if it is running and its restart count has stopped
-  // climbing, so one early crash that recovered is not reported as a failure.
+  // Sample twice: healthy if running and the restart count stopped climbing, so
+  // a transient crash that recovered is not a failure but a crash-loop is.
   if (graceMs) await new Promise((r) => setTimeout(r, graceMs));
   const first = await status(bridge, runner);
   if (settleMs) await new Promise((r) => setTimeout(r, settleMs));
