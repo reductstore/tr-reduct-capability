@@ -138,6 +138,11 @@ const section = {
   borderRadius: "6px",
   background: "#fcfcfd",
 };
+// Amber-highlighted box when the section has unsaved edits.
+const sectionStyle = (dirty) =>
+  dirty
+    ? { ...section, borderColor: "#e0a458", background: "#fffdf5" }
+    : section;
 const btn = { padding: "6px 14px", margin: "4px 4px 4px 0", cursor: "pointer" };
 // Action-bar buttons: greyed and non-clickable when disabled so it is obvious.
 const barBtn = (on) => ({
@@ -276,7 +281,7 @@ function Pipeline({ consoleUrl }) {
   );
 }
 
-function SectionHead({ title, href, children }) {
+function SectionHead({ title, href, dirty, onDiscard, children }) {
   return (
     <div
       style={{
@@ -301,6 +306,35 @@ function SectionHead({ title, href, children }) {
           >
             docs ↗
           </a>
+        )}
+        {dirty && (
+          <span
+            style={{
+              marginLeft: "8px",
+              fontSize: "12px",
+              fontWeight: 400,
+              color: "#b06000",
+            }}
+          >
+            • unsaved, use Apply &amp; Restart above
+            {onDiscard && (
+              <button
+                onClick={onDiscard}
+                style={{
+                  marginLeft: "6px",
+                  padding: 0,
+                  background: "none",
+                  border: "none",
+                  color: "#0078d4",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  fontSize: "12px",
+                }}
+              >
+                discard
+              </button>
+            )}
+          </span>
         )}
       </h5>
       <p style={{ ...hint, margin: 0 }}>{children}</p>
@@ -390,7 +424,6 @@ const Device = ({ jwt, id, host, ssl }) => {
     if (!remoteJson) return;
     try {
       setCfg(JSON.parse(remoteJson));
-      flash("Discarded local changes");
     } catch {
       // ignore malformed
     }
@@ -489,6 +522,42 @@ const Device = ({ jwt, id, host, ssl }) => {
     : "disabled";
   const dirty =
     cfg != null && remoteJson != null && JSON.stringify(cfg) !== remoteJson;
+
+  // Per-section dirty flags, so the box that changed can be highlighted.
+  let remote = null;
+  try {
+    remote = remoteJson ? JSON.parse(remoteJson) : null;
+  } catch {
+    remote = null;
+  }
+  const differs = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
+  const withoutReps = (s) => {
+    const { replications, ...rest } = s || {};
+    return rest;
+  };
+  const storeDirty =
+    !!cfg && !!remote && differs(withoutReps(cfg.store), withoutReps(remote.store));
+  const repsDirty =
+    !!cfg && !!remote && differs(cfg.store.replications, remote.store?.replications);
+  const bridgeDirty = !!cfg && !!remote && differs(cfg.bridge, remote.bridge);
+
+  // Revert just one section's edits back to what the device currently runs.
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const discardStore = () =>
+    remote &&
+    setCfg({
+      ...cfg,
+      store: { ...clone(remote.store), replications: cfg.store.replications },
+    });
+  const discardReps = () =>
+    remote &&
+    setCfg({
+      ...cfg,
+      store: { ...cfg.store, replications: clone(remote.store?.replications || []) },
+    });
+  const discardBridge = () =>
+    remote && setCfg({ ...cfg, bridge: clone(remote.bridge) });
+
   const canStart = state !== "running";
   const canStop = state !== "stopped";
   const storePort = dev.store?.httpPort || cfg?.store.httpPort;
@@ -582,9 +651,6 @@ const Device = ({ jwt, id, host, ssl }) => {
         <button style={barBtn(dirty)} disabled={!dirty} onClick={discard}>
           Discard changes
         </button>
-        <span style={{ fontSize: "12px", color: dirty ? "#b06000" : "#999" }}>
-          {dirty ? "unsaved changes" : "in sync"}
-        </span>
       </div>
       <p style={hint}>
         Start / Stop / Restart control the containers. Apply saves your config
@@ -613,10 +679,12 @@ const Device = ({ jwt, id, host, ssl }) => {
         <>
           <Pipeline consoleUrl={consoleUrl} />
 
-          <div style={section}>
+          <div style={sectionStyle(storeDirty)}>
             <SectionHead
               title="ReductStore, the database on this robot"
               href="https://www.reduct.store/docs/configuration/provisioning"
+              dirty={storeDirty}
+              onDiscard={discardStore}
             >
               Incoming records are stored here in buckets on the robot,
               configured through provisioning env vars.
@@ -717,10 +785,12 @@ const Device = ({ jwt, id, host, ssl }) => {
             </button>
           </div>
 
-          <div style={section}>
+          <div style={sectionStyle(repsDirty)}>
             <SectionHead
               title="Replication, send new data to a remote ReductStore"
               href="https://www.reduct.store/docs/guides/data-replication"
+              dirty={repsDirty}
+              onDiscard={discardReps}
             >
               As records are written to a local bucket, they are also sent to a
               remote or cloud ReductStore. It only adds new records, never
@@ -822,10 +892,12 @@ const Device = ({ jwt, id, host, ssl }) => {
             </button>
           </div>
 
-          <div style={section}>
+          <div style={sectionStyle(bridgeDirty)}>
             <SectionHead
               title="ReductBridge, record data into the store"
               href="https://www.reduct.store/docs/reduct-bridge"
+              dirty={bridgeDirty}
+              onDiscard={discardBridge}
             >
               Writes incoming data into the local ReductStore. The default image
               records ROS 2 topics; other images record ROS 1, MQTT, shell, or
