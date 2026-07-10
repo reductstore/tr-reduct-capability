@@ -1104,14 +1104,13 @@ const Device = ({ jwt, id, host, ssl }) => {
               Extra env vars
             </div>
             <p style={hint}>
-              Optional. Extra environment variables for the bridge container,
-              for example RMW_IMPLEMENTATION.
+              Optional. Extra environment variables for the bridge container.
             </p>
             {bridgeEnv.map((e, i) => (
               <div key={i} style={row}>
                 <input
                   style={{ ...input, maxWidth: "220px" }}
-                  placeholder="RMW_IMPLEMENTATION"
+                  placeholder="RUST_LOG"
                   value={e.key || ""}
                   onChange={(ev) => setBridgeEnv(i, "key", ev.target.value)}
                 />
