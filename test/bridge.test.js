@@ -30,6 +30,14 @@ test("buildRunArgs adds extra read-only mounts", () => {
   assert.match(s, /-v \/opt\/ros_msgs:\/opt\/ros_msgs:ro/);
 });
 
+test("buildRunArgs mounts each list entry, trimming and skipping blanks", () => {
+  const b = { ...defaults().bridge, mounts: ["/a", " /b ", "", "   "] };
+  const s = joined(bridge.buildRunArgs(b, "/tmp/bridge.toml"));
+  assert.match(s, /-v \/a:\/a:ro/);
+  assert.match(s, /-v \/b:\/b:ro/); // trimmed, no surrounding spaces
+  assert.doesNotMatch(s, /-v :/); // blank/whitespace rows produce no mount
+});
+
 test("buildRunArgs adds ROS env only for ROS images", () => {
   const iot = joined(bridge.buildRunArgs({ ...defaults().bridge, image: "reduct/bridge:main-iot" }, "/t.toml"));
   assert.doesNotMatch(iot, /ROS_DOMAIN_ID/);

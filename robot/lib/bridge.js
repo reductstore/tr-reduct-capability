@@ -52,7 +52,8 @@ function buildRunArgs(bridge, tomlPath = BRIDGE_TOML_PATH) {
     args.push("-e", "FASTDDS_BUILTIN_TRANSPORTS=UDPv4");
   }
   for (const mount of bridge.mounts || []) {
-    if (mount) args.push("-v", `${mount}:${mount}:ro`);
+    const m = (mount || "").trim();
+    if (m) args.push("-v", `${m}:${m}:ro`);
   }
   // extra env last so it can override the above
   for (const e of bridge.env || []) {

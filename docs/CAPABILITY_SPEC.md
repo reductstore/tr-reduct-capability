@@ -38,11 +38,13 @@ config builder — robustness comes from Docker's `--restart unless-stopped`.
   owned by another user is otherwise unwritable). `waitUntilAlive` polls
   `HEAD /api/v1/alive`.
 - `lib/bridge.js` — ReductBridge container. Writes the config TOML to
-  `~/.tr-reduct-capability/bridge.toml`, mounts it read-only, host networking +
-  `--ipc=host` (so ROS 2 Fast DDS shared-memory transport reaches host nodes),
-  `ROS_DOMAIN_ID`, and `HOME=/tmp` (the image runs as a non-root user whose home
-  is `/nonexistent`; ROS 2 aborts if it can't create `~/.ros/log`). Runs
-  `reduct-bridge <config>`. Surfaces container logs if it fails to start.
+  `~/.tr-reduct-capability/bridge.toml`, mounts it read-only, host networking.
+  Image-specific env: any ROS image gets `HOME=/tmp` (the image runs as a
+  non-root user whose home is `/nonexistent`; ROS aborts if it can't create
+  `~/.ros/log`); ROS 2 images additionally get `ROS_DOMAIN_ID` (the DDS domain,
+  ROS-2-only) and `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` (SHM is unreachable
+  cross-user, so force UDP). Runs `reduct-bridge <config>`. Surfaces container
+  logs if it fails to start.
 - `main.js` — MQTT wiring; serializes container ops on one promise chain;
   publishes status every 5s; auto-starts on boot. Containers are left running on
   SIGTERM (restart policy keeps them up).

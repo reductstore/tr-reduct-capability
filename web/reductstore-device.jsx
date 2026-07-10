@@ -489,6 +489,18 @@ const Device = ({ jwt, id, host, ssl }) => {
       "env",
       bridgeEnv.filter((_, j) => j !== i),
     );
+  const bridgeMounts = cfg?.bridge.mounts || [];
+  const setMount = (i, v) =>
+    setBridge(
+      "mounts",
+      bridgeMounts.map((m, j) => (j === i ? v : m)),
+    );
+  const addMount = () => setBridge("mounts", [...bridgeMounts, ""]);
+  const removeMount = (i) =>
+    setBridge(
+      "mounts",
+      bridgeMounts.filter((_, j) => j !== i),
+    );
   const bridgeImageKnown =
     cfg && BRIDGE_IMAGES.some((im) => im.value === cfg.bridge.image);
   const bridgeIsRos2 = cfg && /ros2/i.test(cfg.bridge.image || "");
@@ -941,27 +953,37 @@ const Device = ({ jwt, id, host, ssl }) => {
                 />
               </Field>
             )}
-            <Field label="Extra mounts (host dirs)">
-              <input
-                style={input}
-                placeholder="/path1, /path2"
-                value={(cfg.bridge.mounts || []).join(", ")}
-                onChange={(e) =>
-                  setBridge(
-                    "mounts",
-                    e.target.value
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                  )
-                }
-              />
-            </Field>
+            <div
+              style={{
+                margin: "10px 0 4px",
+                fontSize: "13px",
+                fontWeight: 600,
+              }}
+            >
+              Extra mounts (host dirs)
+            </div>
             <p style={hint}>
               Optional volume mounts (not env vars). Host directories mounted
-              read only into the container, for example a ROS 2 workspace with
-              custom message schemas the TOML references. Leave empty otherwise.
+              read only into the container at the same path, for example a ROS 2
+              workspace with custom message schemas the TOML references. Leave
+              empty otherwise.
             </p>
+            {bridgeMounts.map((m, i) => (
+              <div key={i} style={row}>
+                <input
+                  style={input}
+                  placeholder="/home/user/ros2_ws/install"
+                  value={m || ""}
+                  onChange={(ev) => setMount(i, ev.target.value)}
+                />
+                <button style={btn} onClick={() => removeMount(i)}>
+                  ×
+                </button>
+              </div>
+            ))}
+            <button style={btn} onClick={addMount}>
+              Add mount
+            </button>
 
             <div
               style={{
