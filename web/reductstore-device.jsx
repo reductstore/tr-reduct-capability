@@ -10,7 +10,9 @@ const BRIDGE_IMAGES = [
   { value: "reduct/bridge:main-iot", label: "IoT: MQTT / HTTP / Shell" },
 ];
 
-const remoteHeader = (store) => `# ReductBridge config: https://www.reduct.store/docs/reduct-bridge
+const remoteHeader = (
+  store,
+) => `# ReductBridge config: https://www.reduct.store/docs/reduct-bridge
 # Destination: the ReductStore running on this robot.
 [remotes.reduct.local]
 url = "http://127.0.0.1:${store?.httpPort ?? 8383}"
@@ -587,14 +589,19 @@ const Device = ({ jwt, id, host, ssl }) => {
     return rest;
   };
   const storeDirty =
-    !!cfg && !!remote && differs(withoutReps(cfg.store), withoutReps(remote.store));
+    !!cfg &&
+    !!remote &&
+    differs(withoutReps(cfg.store), withoutReps(remote.store));
   const repsDirty =
-    !!cfg && !!remote && differs(cfg.store.replications, remote.store?.replications);
+    !!cfg &&
+    !!remote &&
+    differs(cfg.store.replications, remote.store?.replications);
   const bridgeDirty = !!cfg && !!remote && differs(cfg.bridge, remote.bridge);
   const orphanReps = (dev.store?.replications || [])
     .map((t) => t.name)
     .filter(
-      (n) => n && !(remote?.store?.replications || []).some((r) => r.name === n),
+      (n) =>
+        n && !(remote?.store?.replications || []).some((r) => r.name === n),
     );
 
   const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -608,7 +615,10 @@ const Device = ({ jwt, id, host, ssl }) => {
     remote &&
     setCfg({
       ...cfg,
-      store: { ...cfg.store, replications: clone(remote.store?.replications || []) },
+      store: {
+        ...cfg.store,
+        replications: clone(remote.store?.replications || []),
+      },
     });
   const discardBridge = () =>
     remote && setCfg({ ...cfg, bridge: clone(remote.bridge) });
@@ -711,7 +721,14 @@ const Device = ({ jwt, id, host, ssl }) => {
         </button>
       </div>
       {issues.length > 0 && (
-        <ul style={{ ...hint, color: "#c00", margin: "2px 0 0", paddingLeft: "18px" }}>
+        <ul
+          style={{
+            ...hint,
+            color: "#c00",
+            margin: "2px 0 0",
+            paddingLeft: "18px",
+          }}
+        >
           {issues.map((msg, i) => (
             <li key={i}>{msg}</li>
           ))}
@@ -971,7 +988,7 @@ const Device = ({ jwt, id, host, ssl }) => {
               <p style={{ ...hint, color: "#b26a00" }}>
                 ⚠ {orphanReps.map((n) => `"${n}"`).join(", ")}{" "}
                 {orphanReps.length > 1 ? "are" : "is"} on the device but not
-                managed here (e.g. created manually) — left untouched.
+                managed here (e.g. created manually).
                 {consoleUrl && (
                   <>
                     {" "}
