@@ -19,6 +19,12 @@ function sh(command, args = []) {
   });
 }
 
+function validReplications(store) {
+  return (store.replications || []).filter(
+    (r) => r && r.name && r.srcBucket && r.dstBucket && r.dstHost,
+  );
+}
+
 function buildRunArgs(store) {
   const args = [
     "run",
@@ -48,6 +54,19 @@ function buildRunArgs(store) {
       }
     }
   }
+
+  validReplications(store).forEach((r, i) => {
+      const p = `RS_REPLICATION_${i + 1}_`;
+      args.push("-e", `${p}NAME=${r.name}`);
+      args.push("-e", `${p}SRC_BUCKET=${r.srcBucket}`);
+      args.push("-e", `${p}DST_BUCKET=${r.dstBucket}`);
+      args.push("-e", `${p}DST_HOST=${r.dstHost}`);
+      if (r.dstToken) args.push("-e", `${p}DST_TOKEN=${r.dstToken}`);
+      const entries = (r.entries || "").split(",").map((e) => e.trim()).filter(Boolean);
+      if (entries.length) args.push("-e", `${p}ENTRIES=${entries.join(",")}`);
+      if (r.when && r.when.trim()) args.push("-e", `${p}WHEN=${r.when.trim()}`);
+      if (r.mode) args.push("-e", `${p}MODE=${r.mode}`);
+    });
 
   // extra env last so it can override the above
   for (const e of store.env || []) {
@@ -111,24 +130,6 @@ function storeClient(store) {
   return new Client(`http://127.0.0.1:${store.httpPort}`, { apiToken: store.apiToken });
 }
 
-function replicationSettings(r) {
-  const s = {
-    srcBucket: r.srcBucket,
-    dstBucket: r.dstBucket,
-    dstHost: r.dstHost,
-    entries: r.entries ? r.entries.split(",").map((e) => e.trim()).filter(Boolean) : [],
-  };
-  if (r.dstToken) s.dstToken = r.dstToken;
-  if (r.when && r.when.trim()) {
-    try {
-      s.when = JSON.parse(r.when);
-    } catch {
-      // invalid JSON dropped
-    }
-  }
-  return s;
-}
-
 // Plain JSON (pendingRecords is a bigint).
 async function getReplications(store, client = storeClient(store)) {
   try {
@@ -145,39 +146,34 @@ async function getReplications(store, client = storeClient(store)) {
   }
 }
 
-// Make the store's replications match config (create/update/delete). Provisioned
-// tasks are left alone. Returns the names that failed.
-async function reconcileReplications(store, client = storeClient(store)) {
-  const desired = (store.replications || []).filter(
-    (r) => r && r.name && r.srcBucket && r.dstBucket && r.dstHost,
-  );
-  const desiredNames = new Set(desired.map((r) => r.name));
-  const current = await getReplications(store, client);
-  const currentNames = new Set(current.map((t) => t.name));
-  const failed = [];
-
-  for (const t of current) {
-    if (desiredNames.has(t.name) || t.is_provisioned) continue;
+async function listReplicationNames(client, { retries = 12, delayMs = 500 } = {}) {
+  for (let i = 0; i < retries; i++) {
     try {
-      await client.deleteReplication(t.name);
+      return (await client.getReplicationList()).map((t) => t.name);
     } catch {
-      failed.push(t.name);
+      await new Promise((r) => setTimeout(r, delayMs));
     }
   }
+  return [];
+}
 
-  for (const r of desired) {
+async function pruneReplications(store, managed = [], client = storeClient(store)) {
+  const desired = new Set(validReplications(store).map((r) => r.name));
+  const managedSet = new Set(managed);
+  const removed = [];
+  for (const name of await listReplicationNames(client)) {
+    if (desired.has(name) || !managedSet.has(name)) continue;
     try {
-      if (currentNames.has(r.name)) await client.updateReplication(r.name, replicationSettings(r));
-      else await client.createReplication(r.name, replicationSettings(r));
+      await client.deleteReplication(name);
+      removed.push(name);
     } catch {
-      failed.push(r.name);
+      // best effort
     }
   }
-
-  return failed;
+  return removed;
 }
 
 module.exports = {
   sh, buildRunArgs, status, alive, waitUntilAlive, start, stop,
-  replicationSettings, getReplications, reconcileReplications,
+  getReplications, pruneReplications,
 };

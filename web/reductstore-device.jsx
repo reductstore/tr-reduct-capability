@@ -10,27 +10,30 @@ const BRIDGE_IMAGES = [
   { value: "reduct/bridge:main-iot", label: "IoT: MQTT / HTTP / Shell" },
 ];
 
-// Starter config.toml templates per input family, each writing to this robot's
-// ReductStore. https://www.reduct.store/docs/reduct-bridge
-const REMOTE_HEADER = `# ReductBridge config: https://www.reduct.store/docs/reduct-bridge
+const remoteHeader = (store) => `# ReductBridge config: https://www.reduct.store/docs/reduct-bridge
 # Destination: the ReductStore running on this robot.
 [remotes.reduct.local]
-url = "http://127.0.0.1:8383"
-token_api = "transitive-local-token"
-bucket = "robot-data"
+url = "http://127.0.0.1:${store?.httpPort ?? 8383}"
+token_api = "${store?.apiToken ?? "transitive-local-token"}"
+bucket = "${store?.bucket?.name ?? "robot-data"}"
 prefix = "bridge/"
 `;
+
+const ros2Distro = (image) => {
+  const m = /ros2-([a-z]+)/i.exec(image || "");
+  return m ? m[1].toLowerCase() : "jazzy";
+};
 
 const BRIDGE_TEMPLATES = [
   {
     label: "ROS 2",
-    value: `${REMOTE_HEADER}
+    build: (store, image) => `${remoteHeader(store)}
 # A ROS 2 input. Add more [inputs.ros2.<name>] sections for more sources.
 [inputs.ros2.ros2_local]
 node_name = "reduct_bridge"
 queue_size = 128
 domain_id = 0
-schema_paths = ["/opt/ros/jazzy"]
+schema_paths = ["/opt/ros/${ros2Distro(image)}"]
 
 [[inputs.ros2.ros2_local.topics]]
 name = "/rosout"
@@ -42,7 +45,7 @@ inputs = ["ros2_local"]
   },
   {
     label: "ROS 1",
-    value: `${REMOTE_HEADER}
+    build: (store) => `${remoteHeader(store)}
 # A ROS 1 input. Needs a running roscore.
 [inputs.ros.ros_local]
 uri = "http://localhost:11311"
@@ -59,7 +62,7 @@ inputs = ["ros_local"]
   },
   {
     label: "MQTT",
-    value: `${REMOTE_HEADER}
+    build: (store) => `${remoteHeader(store)}
 # An MQTT input. Set a password via the bridge Extra env vars if needed.
 [inputs.mqtt.main]
 broker = "mqtt://localhost:1883"
@@ -79,7 +82,7 @@ inputs = ["main"]
   },
   {
     label: "HTTP",
-    value: `${REMOTE_HEADER}
+    build: (store) => `${remoteHeader(store)}
 # An HTTP polling input.
 [inputs.http.metrics_api]
 url = "http://localhost:9000/metrics"
@@ -94,7 +97,7 @@ inputs = ["metrics_api"]
   },
   {
     label: "Shell",
-    value: `${REMOTE_HEADER}
+    build: (store) => `${remoteHeader(store)}
 # A shell input: runs a command on an interval and stores its output.
 [inputs.shell.uptime]
 repeat_interval = 10
@@ -118,9 +121,46 @@ const templateForImage = (image) => {
     return BRIDGE_TEMPLATES.find((t) => t.label === "MQTT");
   return null;
 };
-const isTemplateToml = (toml) => {
-  const t = (toml || "").trim();
-  return !t || BRIDGE_TEMPLATES.some((tmpl) => tmpl.value.trim() === t);
+const stripDynamic = (t) =>
+  (t || "")
+    .replace(/^url = "http:\/\/127\.0\.0\.1:\d+"$/gm, 'url = ""')
+    .replace(/^token_api = ".*"$/gm, 'token_api = ""')
+    .replace(/^bucket = ".*"$/gm, 'bucket = ""')
+    .trim();
+const matchingTemplate = (toml, store, image) =>
+  BRIDGE_TEMPLATES.find(
+    (t) => stripDynamic(t.build(store, image)) === stripDynamic(toml),
+  );
+const isTemplateToml = (toml, store, image) =>
+  !toml?.trim() || !!matchingTemplate(toml, store, image);
+
+const REP_REQUIRED = {
+  name: "name",
+  srcBucket: "source bucket",
+  dstBucket: "dest bucket",
+  dstHost: "dest host",
+};
+const isSet = (v) => v != null && String(v).trim() !== "";
+
+const validateConfig = (c) => {
+  const issues = [];
+  const s = c.store || {};
+  if (!isSet(s.image)) issues.push("Store: image is required");
+  if (!isSet(s.httpPort)) issues.push("Store: HTTP port is required");
+  if (!isSet(s.dataPath)) issues.push("Store: data path is required");
+  if (!isSet(s.apiToken)) issues.push("Store: API token is required");
+  if (!isSet(s.bucket?.name)) issues.push("Store: bucket name is required");
+  if (c.bridge?.enabled && !isSet(c.bridge.image))
+    issues.push("Bridge: image is required when enabled");
+  const reps = s.replications || [];
+  reps.forEach((r, i) => {
+    const who = isSet(r.name) ? `"${r.name}"` : `#${i + 1}`;
+    for (const [k, label] of Object.entries(REP_REQUIRED))
+      if (!isSet(r[k])) issues.push(`Replication ${who}: ${label} is required`);
+    if (isSet(r.name) && reps.some((o, j) => j !== i && o.name === r.name))
+      issues.push(`Replication ${who}: name must be unique`);
+  });
+  return issues;
 };
 
 const row = {
@@ -453,6 +493,7 @@ const Device = ({ jwt, id, host, ssl }) => {
         dstToken: "",
         entries: "",
         when: "",
+        mode: "enabled",
       },
     ]);
   const removeRep = (i) =>
@@ -462,6 +503,8 @@ const Device = ({ jwt, id, host, ssl }) => {
     );
   const repStatus = (name) =>
     (dev.store?.replications || []).find((t) => t.name === name);
+
+  const issues = cfg ? validateConfig(cfg) : [];
 
   const envVars = cfg?.store.env || [];
   const setEnv = (i, k, v) =>
@@ -509,12 +552,13 @@ const Device = ({ jwt, id, host, ssl }) => {
   const changeImage = (image) => {
     const tmpl = templateForImage(image);
     const bridge = { ...cfg.bridge, image };
-    if (tmpl && isTemplateToml(cfg.bridge.toml)) bridge.toml = tmpl.value;
+    if (tmpl && isTemplateToml(cfg.bridge.toml, cfg.store, cfg.bridge.image))
+      bridge.toml = tmpl.build(cfg.store, image);
     setCfg({ ...cfg, bridge });
   };
   const loadTemplate = (label) => {
     const tmpl = BRIDGE_TEMPLATES.find((t) => t.label === label);
-    if (tmpl) setBridge("toml", tmpl.value);
+    if (tmpl) setBridge("toml", tmpl.build(cfg.store, cfg.bridge.image));
   };
 
   const state = dev.state || "unknown";
@@ -547,6 +591,11 @@ const Device = ({ jwt, id, host, ssl }) => {
   const repsDirty =
     !!cfg && !!remote && differs(cfg.store.replications, remote.store?.replications);
   const bridgeDirty = !!cfg && !!remote && differs(cfg.bridge, remote.bridge);
+  const orphanReps = (dev.store?.replications || [])
+    .map((t) => t.name)
+    .filter(
+      (n) => n && !(remote?.store?.replications || []).some((r) => r.name === n),
+    );
 
   const clone = (x) => JSON.parse(JSON.stringify(x));
   const discardStore = () =>
@@ -650,13 +699,24 @@ const Device = ({ jwt, id, host, ssl }) => {
           Restart
         </button>
         <span style={divider} />
-        <button style={barPrimary(dirty)} disabled={!dirty} onClick={apply}>
+        <button
+          style={barPrimary(dirty && issues.length === 0)}
+          disabled={!dirty || issues.length > 0}
+          onClick={apply}
+        >
           Apply &amp; Restart
         </button>
         <button style={barBtn(dirty)} disabled={!dirty} onClick={discard}>
           Discard changes
         </button>
       </div>
+      {issues.length > 0 && (
+        <ul style={{ ...hint, color: "#c00", margin: "2px 0 0", paddingLeft: "18px" }}>
+          {issues.map((msg, i) => (
+            <li key={i}>{msg}</li>
+          ))}
+        </ul>
+      )}
       <p style={hint}>
         Start / Stop / Restart control the containers. Apply saves your config
         edits to the robot and restarts so they take effect.
@@ -800,8 +860,8 @@ const Device = ({ jwt, id, host, ssl }) => {
               As records are written to a local bucket, they are also sent to a
               remote or cloud ReductStore. It only adds new records, never
               changing or deleting existing data. Optionally send only the
-              records that match a "when" filter. Removing a task here deletes
-              it on the store.
+              records that match a "when" filter. Tasks are provisioned on the
+              store, so changes apply on Apply &amp; Restart.
             </SectionHead>
             {reps.map((r, i) => (
               <div
@@ -857,6 +917,17 @@ const Device = ({ jwt, id, host, ssl }) => {
                     onChange={(e) => setRep(i, "entries", e.target.value)}
                   />
                 </Field>
+                <Field label="Mode">
+                  <select
+                    style={input}
+                    value={r.mode || "enabled"}
+                    onChange={(e) => setRep(i, "mode", e.target.value)}
+                  >
+                    <option value="enabled">enabled</option>
+                    <option value="paused">paused</option>
+                    <option value="disabled">disabled</option>
+                  </select>
+                </Field>
                 <div style={{ margin: "4px 0" }}>
                   <label style={{ fontSize: "13px" }}>
                     Filter, "when" (optional)
@@ -879,12 +950,16 @@ const Device = ({ jwt, id, host, ssl }) => {
                 </div>
                 {repStatus(r.name) && (
                   <p style={hint}>
-                    on store:{" "}
-                    <b>{repStatus(r.name).is_active ? "active" : "inactive"}</b>
-                    {" · "}pending records: {repStatus(r.name).pending_records}
-                    {repStatus(r.name).is_provisioned
-                      ? " · provisioned (read only)"
-                      : ""}
+                    on device:{" "}
+                    <b>
+                      {repStatus(r.name).is_provisioned
+                        ? "provisioned"
+                        : "unprovisioned"}
+                    </b>
+                    {" · "}
+                    {repStatus(r.name).is_active ? "active" : "inactive"}
+                    {" · pending: "}
+                    {repStatus(r.name).pending_records}
                   </p>
                 )}
                 <button style={btn} onClick={() => removeRep(i)}>
@@ -892,6 +967,23 @@ const Device = ({ jwt, id, host, ssl }) => {
                 </button>
               </div>
             ))}
+            {orphanReps.length > 0 && (
+              <p style={{ ...hint, color: "#b26a00" }}>
+                ⚠ {orphanReps.map((n) => `"${n}"`).join(", ")}{" "}
+                {orphanReps.length > 1 ? "are" : "is"} on the device but not
+                managed here (e.g. created manually) — left untouched.
+                {consoleUrl && (
+                  <>
+                    {" "}
+                    Delete {orphanReps.length > 1 ? "them" : "it"} in the{" "}
+                    <a href={consoleUrl} target="_blank" rel="noreferrer">
+                      ReductStore console
+                    </a>{" "}
+                    if unwanted.
+                  </>
+                )}
+              </p>
+            )}
             <button style={btn} onClick={addRep}>
               Add replication task
             </button>

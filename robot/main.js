@@ -60,14 +60,15 @@ async function publishStatus(message) {
 }
 
 async function bringUp(message) {
+  const managed = (await store.getReplications(config.store).catch(() => []))
+    .filter((t) => t.is_provisioned)
+    .map((t) => t.name);
   await store.start(config.store);
   const ready = await store.waitUntilAlive(config.store);
   if (!ready) throw new Error("ReductStore did not become ready in time");
-  const failed = await store.reconcileReplications(config.store);
+  await store.pruneReplications(config.store, managed);
   if (config.bridge.enabled) await bridge.start(config.bridge);
-  await publishStatus(
-    failed.length ? `${message} (replication failed: ${failed.join(", ")})` : message,
-  );
+  await publishStatus(message);
 }
 
 async function runCommand(action) {

@@ -38,42 +38,56 @@ test("buildRunArgs only sets quota env when a quota type is chosen", () => {
   assert.match(s, /-e RS_BUCKET_1_QUOTA_SIZE=10GB/);
 });
 
-test("replicationSettings maps config to a reduct-js ReplicationSettings", () => {
-  assert.deepEqual(
-    store.replicationSettings({
-      srcBucket: "b", dstBucket: "d", dstHost: "http://h", dstToken: "tok",
-      entries: "a, b", when: '{"&x":{"$gt":1}}',
-    }),
-    { srcBucket: "b", dstBucket: "d", dstHost: "http://h", entries: ["a", "b"],
-      dstToken: "tok", when: { "&x": { $gt: 1 } } },
-  );
+test("buildRunArgs provisions replications via RS_REPLICATION_<ID>_* env", () => {
+  const s = joined(store.buildRunArgs({
+    ...defaults().store,
+    replications: [
+      {
+        name: "cloud", srcBucket: "robot-data", dstBucket: "d", dstHost: "http://h",
+        dstToken: "tok", entries: "a, b", when: '{"&x":{"$gt":1}}', mode: "paused",
+      },
+      { name: "incomplete", srcBucket: "b" },
+    ],
+  }));
+  assert.match(s, /-e RS_REPLICATION_1_NAME=cloud/);
+  assert.match(s, /-e RS_REPLICATION_1_SRC_BUCKET=robot-data/);
+  assert.match(s, /-e RS_REPLICATION_1_DST_BUCKET=d/);
+  assert.match(s, /-e RS_REPLICATION_1_DST_HOST=http:\/\/h/);
+  assert.match(s, /-e RS_REPLICATION_1_DST_TOKEN=tok/);
+  assert.match(s, /-e RS_REPLICATION_1_ENTRIES=a,b/); // trimmed
+  assert.match(s, /-e RS_REPLICATION_1_MODE=paused/);
+  assert.doesNotMatch(s, /RS_REPLICATION_2_/); // incomplete task skipped
 });
 
-test("reconcileReplications creates, updates, and deletes to match config", async () => {
-  const calls = [];
+test("pruneReplications removes only managed tasks dropped from config", async () => {
+  const deleted = [];
   const client = {
     getReplicationList: async () => [
-      { name: "keep", isProvisioned: false, isActive: true, pendingRecords: 0n, mode: "ENABLED" },
-      { name: "stale", isProvisioned: false, isActive: true, pendingRecords: 0n, mode: "ENABLED" },
-      { name: "locked", isProvisioned: true, isActive: true, pendingRecords: 0n, mode: "ENABLED" },
+      { name: "keep" }, { name: "orphan" }, { name: "manual" },
     ],
-    createReplication: async (n) => calls.push(["create", n]),
-    updateReplication: async (n) => calls.push(["update", n]),
-    deleteReplication: async (n) => calls.push(["delete", n]),
+    deleteReplication: async (n) => deleted.push(n),
   };
-  const failed = await store.reconcileReplications({
-    replications: [
-      { name: "keep", srcBucket: "b", dstBucket: "d", dstHost: "http://h" },
-      { name: "new", srcBucket: "b", dstBucket: "d", dstHost: "http://h" },
-      { name: "incomplete" },
-    ],
-  }, client);
-  assert.deepEqual(failed, []);
-  assert.ok(calls.some(([m, n]) => m === "delete" && n === "stale"));
-  assert.ok(!calls.some(([m, n]) => m === "delete" && n === "locked")); // provisioned untouched
-  assert.ok(calls.some(([m, n]) => m === "update" && n === "keep"));
-  assert.ok(calls.some(([m, n]) => m === "create" && n === "new"));
-  assert.ok(!calls.some(([, n]) => n === "incomplete")); // missing fields, skipped
+  const removed = await store.pruneReplications(
+    { replications: [{ name: "keep", srcBucket: "b", dstBucket: "d", dstHost: "http://h" }] },
+    ["keep", "orphan"], // previously provisioned by the platform
+    client,
+  );
+  assert.deepEqual(removed, ["orphan"]); // dropped from config -> pruned
+  assert.deepEqual(deleted, ["orphan"]);
+  assert.ok(!deleted.includes("manual")); // never provisioned by us -> kept
+  assert.ok(!deleted.includes("keep")); // still in config -> kept
+});
+
+test("buildRunArgs omits optional replication env when unset", () => {
+  const s = joined(store.buildRunArgs({
+    ...defaults().store,
+    replications: [{ name: "r", srcBucket: "b", dstBucket: "d", dstHost: "http://h" }],
+  }));
+  assert.match(s, /-e RS_REPLICATION_1_NAME=r/);
+  assert.doesNotMatch(s, /RS_REPLICATION_1_DST_TOKEN/);
+  assert.doesNotMatch(s, /RS_REPLICATION_1_ENTRIES/);
+  assert.doesNotMatch(s, /RS_REPLICATION_1_WHEN/);
+  assert.doesNotMatch(s, /RS_REPLICATION_1_MODE/);
 });
 
 test("appends arbitrary extra env vars", () => {
