@@ -1013,9 +1013,8 @@ const Device = ({ jwt, id, host, ssl }) => {
               dirty={bridgeDirty}
               onDiscard={discardBridge}
             >
-              Writes incoming data into the local ReductStore. The default image
-              records ROS 2 topics; other images record ROS 1, MQTT, shell, or
-              HTTP. Configured with the TOML below.
+              Writes incoming data into the local ReductStore. Configured with
+              the TOML below.
             </SectionHead>
             <Field label="Enabled">
               <input
@@ -1055,9 +1054,12 @@ const Device = ({ jwt, id, host, ssl }) => {
                 <input
                   style={input}
                   type="number"
-                  value={cfg.bridge.rosDomainId}
+                  value={cfg.bridge.rosDomainId ?? ""}
                   onChange={(e) =>
-                    setBridge("rosDomainId", Number(e.target.value))
+                    setBridge(
+                      "rosDomainId",
+                      e.target.value === "" ? "" : Number(e.target.value),
+                    )
                   }
                 />
               </Field>
@@ -1072,10 +1074,9 @@ const Device = ({ jwt, id, host, ssl }) => {
               Extra mounts (host dirs)
             </div>
             <p style={hint}>
-              Optional volume mounts (not env vars). Host directories mounted
-              read only into the container at the same path, for example a ROS 2
-              workspace with custom message schemas the TOML references. Leave
-              empty otherwise.
+              Optional volume mounts. Host directories mounted read only into
+              the container at the same path, for example a ROS 2 workspace with
+              custom message schemas the TOML references.
             </p>
             {bridgeMounts.map((m, i) => (
               <div key={i} style={row}>

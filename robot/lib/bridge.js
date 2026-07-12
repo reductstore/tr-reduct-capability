@@ -48,7 +48,7 @@ function buildRunArgs(bridge, tomlPath = BRIDGE_TOML_PATH) {
   ];
   if (isRos) args.push("-e", "HOME=/tmp");
   if (isRos2) {
-    args.push("-e", `ROS_DOMAIN_ID=${bridge.rosDomainId ?? 0}`);
+    args.push("-e", `ROS_DOMAIN_ID=${Number(bridge.rosDomainId) || 0}`);
     args.push("-e", "FASTDDS_BUILTIN_TRANSPORTS=UDPv4");
   }
   for (const mount of bridge.mounts || []) {
