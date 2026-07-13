@@ -5,14 +5,14 @@
     "start": "while (true); do node main.js; sleep 2; done;"
   },
   "dependencies": {
-    "@transitive-sdk/utils": "^0.16.3"
+    "@transitive-sdk/utils": "^0.17.4"
   },
   "overrides": {
     "@transitive-sdk/utils": {
       "jsonwebtoken": "^9.0.3",
       "lodash": "^4.17.24",
       "help-me": "^5.0.0",
-      "ws": "^8.18.3"
+      "ws": "^8.21.0"
     }
   }
 }

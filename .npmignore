@@ -1,13 +1,27 @@
+# Dev/build helper scripts
+rundev.sh
+publish.sh
+docker.sh
+tmux.sh
+
+# Dev-only dirs and sources
 test
 web/
 docs/
-.npmrc
+tmp
+wasm
+
+# Local config and secrets
 .env
 *.log
-**/node_modules
-**/package-lock.json
+**/.npmrc
 **/certs
+**/billing_token.txt
 client.crt
 client.csr
 client.key
+
+# Never publish deps or lockfiles / sourcemaps
+**/node_modules
+**/package-lock.json
 dist/*.js.map

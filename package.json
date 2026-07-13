@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@transitive-sdk/utils-caps": "^0.2.12",
-    "@transitive-sdk/utils-web": "^0.16.3",
+    "@transitive-sdk/utils-web": "^0.17.4",
     "lodash": "^4.17.21",
     "react": "^18.3.1",
     "react-bootstrap": "^2.1.2",
