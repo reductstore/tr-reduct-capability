@@ -28,8 +28,6 @@ function writeToml(bridge, tomlPath = BRIDGE_TOML_PATH) {
   return tomlPath;
 }
 
-// ROS env is image-specific: a writable HOME for ROS (logs to ~/.ros/log), plus
-// the DDS domain and UDP transport for ROS 2 (SHM is unreachable cross-user).
 function buildRunArgs(bridge, tomlPath = BRIDGE_TOML_PATH) {
   const image = bridge.image || "";
   const isRos = /ros/i.test(image);
@@ -63,7 +61,7 @@ function buildRunArgs(bridge, tomlPath = BRIDGE_TOML_PATH) {
   return args;
 }
 
-// docker inspect (not ps): a crash-looping container still lists in ps, so only
+// a crash-looping container still lists in ps, so only
 // a running, non-restarting container counts as up.
 async function status(bridge, runner = sh) {
   const out = await runner("docker", [

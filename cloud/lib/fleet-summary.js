@@ -1,5 +1,4 @@
-// Aggregate one org's devices into a fleet summary. `parts` is the capability
-// path split (e.g. ["@local", "reductstore", "0.1"]) to reach each device's data.
+// Aggregate one org's devices into a fleet summary.
 function computeFleetSummary(devices, parts) {
   const summary = {
     total: 0,

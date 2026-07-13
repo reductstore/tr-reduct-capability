@@ -20,7 +20,6 @@ class CloudCapability extends Capability {
     });
   }
 
-  // Per-org summary published under that org's _fleet device (read by the widget).
   publishFleet() {
     const root = this.data.get() || {};
     const parts = this.fullName.split("/");
