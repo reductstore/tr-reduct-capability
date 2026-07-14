@@ -1,15 +1,39 @@
-# tr-reduct-capability
+# ReductStore
 
-Transitive Robotics capability that runs [ReductStore](https://www.reduct.store/)
-and [ReductBridge](https://www.reduct.store/docs/reduct-bridge) as Docker
-containers on a robot. ReductStore is configured through
-[provisioning](https://www.reduct.store/docs/configuration/provisioning)
-environment variables; the bridge is configured with a TOML file you author.
+Records your robot's data on the robot itself and syncs it to a central
+[ReductStore](https://www.reduct.store/). It runs two Docker containers, managed
+from the portal:
+
+- **ReductStore**: a time-series object store that keeps data on the robot with
+  per-bucket size limits.
+- **ReductBridge**: ingests data from the robot (ROS 2, ROS 1, or IoT sources
+  such as MQTT, HTTP, and shell commands) into the store.
+
+## Features
+
+- Start, stop, and restart both containers from the portal.
+- Configure the store: image, HTTP port, API token, and bucket (name, quota
+  type, size).
+- Replicate data to a central ReductStore.
+- Pick a data source and edit its bridge configuration in the portal.
+- Fleet view: per-organization running / stopped / error counts, and how many
+  stores and bridges are up.
 
 ## Prerequisites
 
-- Node.js 20+
-- Docker
-- A provisioning-capable ReductStore image (default `reduct/store:latest`)
-- For ROS ingestion: ROS running on the host (the bridge uses host networking).
-- Transitive agent installed.
+- Docker installed on the robot.
+- The data source you want to record, reachable from the robot: a running ROS
+  graph, an MQTT broker, or an HTTP endpoint. ROS ingestion uses host
+  networking.
+
+## Configuration
+
+Everything is configured from the device view in the portal.
+
+**Store**: set the image, HTTP port, API token, and bucket (name, quota type,
+size), and define replication tasks to sync data to a central ReductStore.
+
+**Bridge**: disabled by default. Pick an image for your data source and edit
+its TOML configuration. See the
+[ReductBridge docs](https://www.reduct.store/docs/reduct-bridge).
+
