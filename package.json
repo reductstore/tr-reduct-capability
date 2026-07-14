@@ -1,0 +1,41 @@
+{
+  "name": "@local/reductstore",
+  "version": "0.1.0",
+  "description": "Records, stores, and syncs data from ROS, Zenoh, MQTT, and logs to ReductStore.",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "./subScript",
+    "preinstall": "./subScript",
+    "install": "./subScript",
+    "postinstall": "./subScript",
+    "prepare": "transitiveDev web",
+    "prepack": "transitiveDev prepack",
+    "cloud": "npm --prefix cloud start",
+    "dev": "npm --prefix robot run dev",
+    "dev:start": "transitiveDev tmux",
+    "dev:install": "npm --prefix robot install",
+    "test": "npm --prefix robot run test"
+  },
+  "keywords": [
+    "transitive-robotics",
+    "reductstore",
+    "capability"
+  ],
+  "license": "MIT",
+  "config": {
+    "versionNamespace": "minor"
+  },
+  "transitiverobotics": {
+    "title": "ReductStore"
+  },
+  "devDependencies": {
+    "@transitive-sdk/utils-caps": "^0.2.12",
+    "@transitive-sdk/utils-web": "^0.17.4",
+    "lodash": "^4.17.21",
+    "react": "^18.3.1",
+    "react-bootstrap": "^2.1.2",
+    "react-dom": "^18.3.1",
+    "react-web-component-style-loader": "^0.1.4-alpha"
+  }
+}

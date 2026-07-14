@@ -1,0 +1,24 @@
+{
+  "main": "main.js",
+  "scripts": {
+    "start": "node --preserve-symlinks $NODE_ARGS main.js",
+    "dev": "STANDALONE=true node main.js",
+    "test": "node --test ../test/*.test.js"
+  },
+  "dependencies": {
+    "@transitive-sdk/utils": "^0.17.4",
+    "mqtt": "^5.15.2",
+    "reduct-js": "^1.20.0"
+  },
+  "devDependencies": {
+    "aedes": "^0.51.3"
+  },
+  "overrides": {
+    "@transitive-sdk/utils": {
+      "jsonwebtoken": "^9.0.3",
+      "lodash": "^4.17.24",
+      "help-me": "^5.0.0",
+      "ws": "^8.21.0"
+    }
+  }
+}
