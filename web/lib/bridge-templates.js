@@ -1,8 +1,8 @@
 export const BRIDGE_IMAGES = [
-  { value: "reduct/bridge:main-ros2-jazzy", label: "ROS 2 (Jazzy)" },
-  { value: "reduct/bridge:main-ros2-humble", label: "ROS 2 (Humble)" },
-  { value: "reduct/bridge:main-ros1", label: "ROS 1" },
-  { value: "reduct/bridge:main-iot", label: "IoT: MQTT / HTTP / Shell" },
+  { value: "reduct/bridge:latest-ros2-jazzy", label: "ROS 2 (Jazzy)" },
+  { value: "reduct/bridge:latest-ros2-humble", label: "ROS 2 (Humble)" },
+  { value: "reduct/bridge:latest-ros1", label: "ROS 1" },
+  { value: "reduct/bridge:latest-iot", label: "IoT: MQTT / HTTP / Shell" },
 ];
 
 const remoteHeader = (

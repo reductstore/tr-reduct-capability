@@ -46,7 +46,7 @@ function defaults() {
     },
     bridge: {
       enabled: false, // operator enables it after configuring an input
-      image: "reduct/bridge:main-ros2-jazzy",
+      image: "reduct/bridge:latest-ros2-jazzy",
       containerName: "reduct-bridge",
       rosDomainId: 0,
       mounts: [],
