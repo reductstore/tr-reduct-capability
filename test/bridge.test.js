@@ -39,12 +39,12 @@ test("buildRunArgs mounts each list entry, trimming and skipping blanks", () => 
 });
 
 test("buildRunArgs adds ROS env only for ROS images", () => {
-  const iot = joined(bridge.buildRunArgs({ ...defaults().bridge, image: "reduct/bridge:main-iot" }, "/t.toml"));
+  const iot = joined(bridge.buildRunArgs({ ...defaults().bridge, image: "reduct/bridge:latest-iot" }, "/t.toml"));
   assert.doesNotMatch(iot, /ROS_DOMAIN_ID/);
   assert.doesNotMatch(iot, /HOME=\/tmp/);
   assert.doesNotMatch(iot, /FASTDDS/);
 
-  const ros1 = joined(bridge.buildRunArgs({ ...defaults().bridge, image: "reduct/bridge:main-ros1" }, "/t.toml"));
+  const ros1 = joined(bridge.buildRunArgs({ ...defaults().bridge, image: "reduct/bridge:latest-ros1" }, "/t.toml"));
   assert.match(ros1, /-e HOME=\/tmp/); // ROS 1 needs a writable home
   assert.doesNotMatch(ros1, /ROS_DOMAIN_ID/); // but not the ROS 2 DDS env
   assert.doesNotMatch(ros1, /FASTDDS/);
