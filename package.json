@@ -27,7 +27,10 @@
     "versionNamespace": "minor"
   },
   "transitiverobotics": {
-    "title": "ReductStore"
+    "title": "ReductStore",
+    "videos": [
+      "https://www.youtube.com/embed/xYrL1qBhfY4"
+    ]
   },
   "devDependencies": {
     "@transitive-sdk/utils-caps": "^0.2.12",
