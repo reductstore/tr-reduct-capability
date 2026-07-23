@@ -1,6 +1,10 @@
 const os = require("node:os");
 const mqtt = require("mqtt");
-const { MqttSync, getLogger, getPackageVersionNamespace } = require("@transitive-sdk/utils");
+const {
+  MqttSync,
+  getLogger,
+  getPackageVersionNamespace,
+} = require("@transitive-sdk/utils");
 const store = require("./lib/store");
 const bridge = require("./lib/bridge");
 const { loadConfig, saveConfig, CONFIG_PATH } = require("./lib/config");
@@ -42,12 +46,16 @@ function publishConfig() {
 
 async function publishStatus(message) {
   if (!mqttSync) return;
-  const storeStatus = await store.status(config.store).catch(() => ({ running: false }));
+  const storeStatus = await store
+    .status(config.store)
+    .catch(() => ({ running: false }));
   const bridgeStatus = await bridge
     .status(config.bridge)
     .catch(() => ({ running: false, enabled: !!config.bridge.enabled }));
   const isAlive = storeStatus.running ? await store.alive(config.store) : false;
-  const replications = isAlive ? await store.getReplications(config.store).catch(() => []) : [];
+  const replications = isAlive
+    ? await store.getReplications(config.store).catch(() => [])
+    : [];
 
   const d = mqttSync.data;
   d.update("/device/state", deriveState(storeStatus, bridgeStatus));
@@ -131,7 +139,7 @@ process.once("SIGINT", () => gracefulShutdown("SIGINT"));
 
 async function boot() {
   let connectUrl = "mqtt://localhost";
-  let connectOpts = {};
+  let connectOpts;
 
   if (isStandalone) {
     const { startStandalone } = require("./lib/standalone");
@@ -166,7 +174,10 @@ async function boot() {
 
     publishConfig();
     setInterval(publishConfig, 15000);
-    setInterval(() => publishStatus().catch((err) => log.warn(err.message)), 5000);
+    setInterval(
+      () => publishStatus().catch((err) => log.warn(err.message)),
+      5000,
+    );
     await publishStatus("ready").catch((err) => log.warn(err.message));
 
     if (config.autoStart) {

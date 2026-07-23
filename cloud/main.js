@@ -26,9 +26,15 @@ class CloudCapability extends Capability {
     for (const [org, devices] of Object.entries(root)) {
       const summary = computeFleetSummary(devices, parts);
       for (const [key, value] of Object.entries(summary)) {
-        this.data.update(`/${org}/_fleet/${this.fullName}/cloud/fleet/${key}`, value);
+        this.data.update(
+          `/${org}/_fleet/${this.fullName}/cloud/fleet/${key}`,
+          value,
+        );
       }
-      this.data.update(`/${org}/_fleet/${this.fullName}/cloud/fleet/updatedAt`, Date.now());
+      this.data.update(
+        `/${org}/_fleet/${this.fullName}/cloud/fleet/updatedAt`,
+        Date.now(),
+      );
     }
   }
 }

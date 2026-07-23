@@ -9,7 +9,7 @@ function device(state, storeRunning, bridgeRunning) {
   return {
     "@local": {
       reductstore: {
-        "0.1": {
+        0.1: {
           device: {
             state,
             store: { running: storeRunning },
@@ -26,7 +26,9 @@ test("counts device states and per-component running totals", () => {
     dev1: device("running", true, true),
     dev2: device("error", true, false),
     dev3: device("stopped", false, false),
-    _fleet: { "@local": { reductstore: { "0.1": { cloud: { fleet: { total: 99 } } } } } },
+    _fleet: {
+      "@local": { reductstore: { 0.1: { cloud: { fleet: { total: 99 } } } } },
+    },
   };
 
   const summary = computeFleetSummary(devices, PARTS);

@@ -56,17 +56,20 @@ function buildRunArgs(store) {
   }
 
   validReplications(store).forEach((r, i) => {
-      const p = `RS_REPLICATION_${i + 1}_`;
-      args.push("-e", `${p}NAME=${r.name}`);
-      args.push("-e", `${p}SRC_BUCKET=${r.srcBucket}`);
-      args.push("-e", `${p}DST_BUCKET=${r.dstBucket}`);
-      args.push("-e", `${p}DST_HOST=${r.dstHost}`);
-      if (r.dstToken) args.push("-e", `${p}DST_TOKEN=${r.dstToken}`);
-      const entries = (r.entries || "").split(",").map((e) => e.trim()).filter(Boolean);
-      if (entries.length) args.push("-e", `${p}ENTRIES=${entries.join(",")}`);
-      if (r.when && r.when.trim()) args.push("-e", `${p}WHEN=${r.when.trim()}`);
-      if (r.mode) args.push("-e", `${p}MODE=${r.mode}`);
-    });
+    const p = `RS_REPLICATION_${i + 1}_`;
+    args.push("-e", `${p}NAME=${r.name}`);
+    args.push("-e", `${p}SRC_BUCKET=${r.srcBucket}`);
+    args.push("-e", `${p}DST_BUCKET=${r.dstBucket}`);
+    args.push("-e", `${p}DST_HOST=${r.dstHost}`);
+    if (r.dstToken) args.push("-e", `${p}DST_TOKEN=${r.dstToken}`);
+    const entries = (r.entries || "")
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
+    if (entries.length) args.push("-e", `${p}ENTRIES=${entries.join(",")}`);
+    if (r.when && r.when.trim()) args.push("-e", `${p}WHEN=${r.when.trim()}`);
+    if (r.mode) args.push("-e", `${p}MODE=${r.mode}`);
+  });
 
   // extra env last so it can override the above
   for (const e of store.env || []) {
@@ -101,7 +104,10 @@ async function alive(store) {
   }
 }
 
-async function waitUntilAlive(store, { timeoutMs = 30000, intervalMs = 1000 } = {}) {
+async function waitUntilAlive(
+  store,
+  { timeoutMs = 30000, intervalMs = 1000 } = {},
+) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await alive(store)) return true;
@@ -127,7 +133,9 @@ async function start(store, runner = sh) {
 }
 
 function storeClient(store) {
-  return new Client(`http://127.0.0.1:${store.httpPort}`, { apiToken: store.apiToken });
+  return new Client(`http://127.0.0.1:${store.httpPort}`, {
+    apiToken: store.apiToken,
+  });
 }
 
 // Plain JSON (pendingRecords is a bigint).
@@ -146,7 +154,10 @@ async function getReplications(store, client = storeClient(store)) {
   }
 }
 
-async function listReplicationNames(client, { retries = 12, delayMs = 500 } = {}) {
+async function listReplicationNames(
+  client,
+  { retries = 12, delayMs = 500 } = {},
+) {
   for (let i = 0; i < retries; i++) {
     try {
       return (await client.getReplicationList()).map((t) => t.name);
@@ -157,7 +168,11 @@ async function listReplicationNames(client, { retries = 12, delayMs = 500 } = {}
   return [];
 }
 
-async function pruneReplications(store, managed = [], client = storeClient(store)) {
+async function pruneReplications(
+  store,
+  managed = [],
+  client = storeClient(store),
+) {
   const desired = new Set(validReplications(store).map((r) => r.name));
   const managedSet = new Set(managed);
   const removed = [];
@@ -174,6 +189,13 @@ async function pruneReplications(store, managed = [], client = storeClient(store
 }
 
 module.exports = {
-  sh, buildRunArgs, status, alive, waitUntilAlive, start, stop,
-  getReplications, pruneReplications,
+  sh,
+  buildRunArgs,
+  status,
+  alive,
+  waitUntilAlive,
+  start,
+  stop,
+  getReplications,
+  pruneReplications,
 };

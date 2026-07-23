@@ -36,4 +36,3 @@ size), and define replication tasks to sync data to a central ReductStore.
 **Bridge**: disabled by default. Pick an image for your data source and edit
 its TOML configuration. See the
 [ReductBridge docs](https://www.reduct.store/docs/reduct-bridge).
-

@@ -10,10 +10,16 @@ web/
 docs/
 tmp
 wasm
+.github/
+
+# Dev tooling config
+eslint.config.js
+.prettierignore
 
 # Local config and secrets
 .env
 *.log
+.claude/
 **/.npmrc
 **/certs
 **/billing_token.txt

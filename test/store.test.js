@@ -39,16 +39,24 @@ test("buildRunArgs only sets quota env when a quota type is chosen", () => {
 });
 
 test("buildRunArgs provisions replications via RS_REPLICATION_<ID>_* env", () => {
-  const s = joined(store.buildRunArgs({
-    ...defaults().store,
-    replications: [
-      {
-        name: "cloud", srcBucket: "robot-data", dstBucket: "d", dstHost: "http://h",
-        dstToken: "tok", entries: "a, b", when: '{"&x":{"$gt":1}}', mode: "paused",
-      },
-      { name: "incomplete", srcBucket: "b" },
-    ],
-  }));
+  const s = joined(
+    store.buildRunArgs({
+      ...defaults().store,
+      replications: [
+        {
+          name: "cloud",
+          srcBucket: "robot-data",
+          dstBucket: "d",
+          dstHost: "http://h",
+          dstToken: "tok",
+          entries: "a, b",
+          when: '{"&x":{"$gt":1}}',
+          mode: "paused",
+        },
+        { name: "incomplete", srcBucket: "b" },
+      ],
+    }),
+  );
   assert.match(s, /-e RS_REPLICATION_1_NAME=cloud/);
   assert.match(s, /-e RS_REPLICATION_1_SRC_BUCKET=robot-data/);
   assert.match(s, /-e RS_REPLICATION_1_DST_BUCKET=d/);
@@ -63,12 +71,18 @@ test("pruneReplications removes only managed tasks dropped from config", async (
   const deleted = [];
   const client = {
     getReplicationList: async () => [
-      { name: "keep" }, { name: "orphan" }, { name: "manual" },
+      { name: "keep" },
+      { name: "orphan" },
+      { name: "manual" },
     ],
     deleteReplication: async (n) => deleted.push(n),
   };
   const removed = await store.pruneReplications(
-    { replications: [{ name: "keep", srcBucket: "b", dstBucket: "d", dstHost: "http://h" }] },
+    {
+      replications: [
+        { name: "keep", srcBucket: "b", dstBucket: "d", dstHost: "http://h" },
+      ],
+    },
     ["keep", "orphan"], // previously provisioned by the platform
     client,
   );
@@ -79,10 +93,14 @@ test("pruneReplications removes only managed tasks dropped from config", async (
 });
 
 test("buildRunArgs omits optional replication env when unset", () => {
-  const s = joined(store.buildRunArgs({
-    ...defaults().store,
-    replications: [{ name: "r", srcBucket: "b", dstBucket: "d", dstHost: "http://h" }],
-  }));
+  const s = joined(
+    store.buildRunArgs({
+      ...defaults().store,
+      replications: [
+        { name: "r", srcBucket: "b", dstBucket: "d", dstHost: "http://h" },
+      ],
+    }),
+  );
   assert.match(s, /-e RS_REPLICATION_1_NAME=r/);
   assert.doesNotMatch(s, /RS_REPLICATION_1_DST_TOKEN/);
   assert.doesNotMatch(s, /RS_REPLICATION_1_ENTRIES/);
@@ -91,10 +109,15 @@ test("buildRunArgs omits optional replication env when unset", () => {
 });
 
 test("appends arbitrary extra env vars", () => {
-  const s = joined(store.buildRunArgs({
-    ...defaults().store,
-    env: [{ key: "RS_LOG_LEVEL", value: "DEBUG" }, { key: "", value: "ignored" }],
-  }));
+  const s = joined(
+    store.buildRunArgs({
+      ...defaults().store,
+      env: [
+        { key: "RS_LOG_LEVEL", value: "DEBUG" },
+        { key: "", value: "ignored" },
+      ],
+    }),
+  );
   assert.match(s, /-e RS_LOG_LEVEL=DEBUG/);
   assert.doesNotMatch(s, /=ignored/);
 });
