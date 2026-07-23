@@ -42,7 +42,10 @@ module.exports = [
       },
     },
     rules: {
-      "no-unused-vars": ["warn", { varsIgnorePattern: "^React$" }],
+      "no-unused-vars": [
+        "warn",
+        { varsIgnorePattern: "^React$", ignoreRestSiblings: true },
+      ],
     },
   },
 ];

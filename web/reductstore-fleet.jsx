@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { createWebComponent, useTransitive } from "@transitive-sdk/utils-web";
 
-const [scope, capabilityName] = TR_PKG_NAME.split("/");
+const [, capabilityName] = TR_PKG_NAME.split("/");
 
 const cell = {
   padding: "4px 12px",

@@ -9,7 +9,7 @@ import {
 } from "./lib/sections";
 import { badge, barBtn, barPrimary, divider, btn, hint } from "./lib/styles";
 
-const [scope, capabilityName] = TR_PKG_NAME.split("/");
+const [, capabilityName] = TR_PKG_NAME.split("/");
 
 const Device = ({ jwt, id, host, ssl }) => {
   const { mqttSync, data, StatusComponent, prefixVersion, prefixPathVersion } =
