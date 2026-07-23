@@ -17,8 +17,13 @@ function sh(command, args = []) {
 // Capture both streams: the bridge prints config errors on stderr.
 function fetchLogs(name) {
   return new Promise((resolve) => {
-    execFile("docker", ["logs", "--tail", "20", name], { encoding: "utf8" },
-      (_err, stdout, stderr) => resolve(`${stdout || ""}${stderr || ""}`.trim()));
+    execFile(
+      "docker",
+      ["logs", "--tail", "20", name],
+      { encoding: "utf8" },
+      (_err, stdout, stderr) =>
+        resolve(`${stdout || ""}${stderr || ""}`.trim()),
+    );
   });
 }
 
@@ -71,9 +76,15 @@ async function status(bridge, runner = sh) {
     bridge.containerName,
   ]).catch(() => "");
   if (!out) {
-    return { running: false, enabled: !!bridge.enabled, image: bridge.image, restartCount: 0 };
+    return {
+      running: false,
+      enabled: !!bridge.enabled,
+      image: bridge.image,
+      restartCount: 0,
+    };
   }
-  const [containerId, dockerStatus, restarting, restartCount, image] = out.split("|");
+  const [containerId, dockerStatus, restarting, restartCount, image] =
+    out.split("|");
   return {
     running: dockerStatus === "running" && restarting !== "true",
     restartCount: Number(restartCount) || 0,
@@ -89,7 +100,11 @@ async function stop(bridge, runner = sh) {
   return { running: false, enabled: !!bridge.enabled };
 }
 
-async function start(bridge, runner = sh, { graceMs = 3000, settleMs = 2000 } = {}) {
+async function start(
+  bridge,
+  runner = sh,
+  { graceMs = 3000, settleMs = 2000 } = {},
+) {
   if (!bridge.enabled) return stop(bridge, runner);
 
   await stop(bridge, runner);
@@ -106,9 +121,7 @@ async function start(bridge, runner = sh, { graceMs = 3000, settleMs = 2000 } = 
   if (!second.running || second.restartCount > first.restartCount) {
     const logs = await fetchLogs(bridge.containerName);
     await runner("docker", ["rm", "-f", bridge.containerName]).catch(() => {});
-    throw new Error(
-      `reduct-bridge failed to start${logs ? `:\n${logs}` : ""}`,
-    );
+    throw new Error(`reduct-bridge failed to start${logs ? `:\n${logs}` : ""}`);
   }
   return second;
 }

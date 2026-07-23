@@ -10,6 +10,11 @@ web/
 docs/
 tmp
 wasm
+.github/
+
+# Dev tooling config
+eslint.config.js
+.prettierignore
 
 # Local config and secrets
 .env

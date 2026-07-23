@@ -1,19 +1,30 @@
 import React from "react";
 import { Field, SectionHead } from "./ui";
-import { BRIDGE_IMAGES, BRIDGE_TEMPLATES, templateForImage, isTemplateToml } from "./bridge-templates";
+import {
+  BRIDGE_IMAGES,
+  BRIDGE_TEMPLATES,
+  templateForImage,
+  isTemplateToml,
+} from "./bridge-templates";
 import { row, input, btn, hint, sectionStyle } from "./styles";
 
 export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
   const store = cfg.store;
   const setStore = (k, v) => setCfg({ ...cfg, store: { ...store, [k]: v } });
-  const setBucket = (k, v) =>
-    setStore("bucket", { ...store.bucket, [k]: v });
+  const setBucket = (k, v) => setStore("bucket", { ...store.bucket, [k]: v });
 
   const env = store.env || [];
   const setEnv = (i, k, v) =>
-    setStore("env", env.map((e, j) => (j === i ? { ...e, [k]: v } : e)));
+    setStore(
+      "env",
+      env.map((e, j) => (j === i ? { ...e, [k]: v } : e)),
+    );
   const addEnv = () => setStore("env", [...env, { key: "", value: "" }]);
-  const removeEnv = (i) => setStore("env", env.filter((_, j) => j !== i));
+  const removeEnv = (i) =>
+    setStore(
+      "env",
+      env.filter((_, j) => j !== i),
+    );
 
   return (
     <div style={sectionStyle(dirty)}>
@@ -134,7 +145,8 @@ export function ReplicationSection({
 }) {
   const store = cfg.store;
   const reps = store.replications || [];
-  const setReps = (v) => setCfg({ ...cfg, store: { ...store, replications: v } });
+  const setReps = (v) =>
+    setCfg({ ...cfg, store: { ...store, replications: v } });
   const setRep = (i, k, v) =>
     setReps(reps.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
   const addRep = () =>
@@ -157,7 +169,8 @@ export function ReplicationSection({
   const orphanReps = (dev.store?.replications || [])
     .map((t) => t.name)
     .filter(
-      (n) => n && !(remote?.store?.replications || []).some((r) => r.name === n),
+      (n) =>
+        n && !(remote?.store?.replications || []).some((r) => r.name === n),
     );
 
   return (
@@ -240,7 +253,9 @@ export function ReplicationSection({
             </select>
           </Field>
           <div style={{ margin: "4px 0" }}>
-            <label style={{ fontSize: "13px" }}>Filter, "when" (optional)</label>
+            <label style={{ fontSize: "13px" }}>
+              Filter, "when" (optional)
+            </label>
             <textarea
               style={{
                 width: "100%",
@@ -306,16 +321,29 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
 
   const env = bridge.env || [];
   const setEnv = (i, k, v) =>
-    setBridge("env", env.map((e, j) => (j === i ? { ...e, [k]: v } : e)));
+    setBridge(
+      "env",
+      env.map((e, j) => (j === i ? { ...e, [k]: v } : e)),
+    );
   const addEnv = () => setBridge("env", [...env, { key: "", value: "" }]);
-  const removeEnv = (i) => setBridge("env", env.filter((_, j) => j !== i));
+  const removeEnv = (i) =>
+    setBridge(
+      "env",
+      env.filter((_, j) => j !== i),
+    );
 
   const mounts = bridge.mounts || [];
   const setMount = (i, v) =>
-    setBridge("mounts", mounts.map((m, j) => (j === i ? v : m)));
+    setBridge(
+      "mounts",
+      mounts.map((m, j) => (j === i ? v : m)),
+    );
   const addMount = () => setBridge("mounts", [...mounts, ""]);
   const removeMount = (i) =>
-    setBridge("mounts", mounts.filter((_, j) => j !== i));
+    setBridge(
+      "mounts",
+      mounts.filter((_, j) => j !== i),
+    );
 
   const imageKnown = BRIDGE_IMAGES.some((im) => im.value === bridge.image);
   const isRos2 = /ros2/i.test(bridge.image || "");

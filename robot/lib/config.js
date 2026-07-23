@@ -2,8 +2,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 
-const STATE_DIR = process.env.STATE_DIR || path.join(os.homedir(), ".tr-reduct-capability");
-const CONFIG_PATH = process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
+const STATE_DIR =
+  process.env.STATE_DIR || path.join(os.homedir(), ".tr-reduct-capability");
+const CONFIG_PATH =
+  process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
 const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
 
 // Keep identical to the ROS 2 template in web/reductstore-device.jsx (template

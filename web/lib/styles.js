@@ -68,5 +68,9 @@ export const dNode = {
   lineHeight: 1.2,
 };
 // External to this capability (not configured here): drawn with a dashed border.
-export const dExternal = { ...dNode, borderStyle: "dashed", background: "#fafbfc" };
+export const dExternal = {
+  ...dNode,
+  borderStyle: "dashed",
+  background: "#fafbfc",
+};
 export const dArrow = { color: "#8a97a8", fontSize: "15px" };

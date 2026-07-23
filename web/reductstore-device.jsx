@@ -2,7 +2,11 @@ import React, { useEffect, useState } from "react";
 import { createWebComponent, useTransitive } from "@transitive-sdk/utils-web";
 import { validateConfig } from "./lib/validate";
 import { Pipeline } from "./lib/ui";
-import { StoreSection, ReplicationSection, BridgeSection } from "./lib/sections";
+import {
+  StoreSection,
+  ReplicationSection,
+  BridgeSection,
+} from "./lib/sections";
 import { badge, barBtn, barPrimary, divider, btn, hint } from "./lib/styles";
 
 const [scope, capabilityName] = TR_PKG_NAME.split("/");
@@ -248,7 +252,12 @@ const Device = ({ jwt, id, host, ssl }) => {
       </div>
       {issues.length > 0 && (
         <ul
-          style={{ ...hint, color: "#c00", margin: "2px 0 0", paddingLeft: "18px" }}
+          style={{
+            ...hint,
+            color: "#c00",
+            margin: "2px 0 0",
+            paddingLeft: "18px",
+          }}
         >
           {issues.map((msg, i) => (
             <li key={i}>{msg}</li>

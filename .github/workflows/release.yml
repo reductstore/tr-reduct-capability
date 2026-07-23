@@ -1,9 +1,9 @@
-name: Build release tarball
+name: Release
 
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 permissions:
   contents: write
@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: '.nvmrc'
+          node-version-file: ".nvmrc"
 
       - name: Verify tag matches package.json version
         run: |
@@ -35,4 +35,4 @@ jobs:
         with:
           draft: true
           generate_release_notes: true
-          files: '*.tgz'
+          files: "*.tgz"
