@@ -14,6 +14,7 @@ wasm
 # Local config and secrets
 .env
 *.log
+.claude/
 **/.npmrc
 **/certs
 **/billing_token.txt

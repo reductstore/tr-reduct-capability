@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-23
+
 ### Added
 
 - Initial ReductStore capability: provision and manage a ReductStore instance and ReductBridge on a robot from the portal, [PR-2](https://github.com/reductstore/tr-reduct-capability/pull/2).
