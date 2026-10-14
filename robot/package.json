@@ -3,7 +3,8 @@
   "scripts": {
     "start": "node --preserve-symlinks $NODE_ARGS main.js",
     "dev": "STANDALONE=true node main.js",
-    "test": "node --test ../test/*.test.js"
+    "test": "node --test ../test/*.test.js",
+    "postinstall": "node lib/install-binaries.js"
   },
   "dependencies": {
     "@transitive-sdk/utils": "^0.17.4",

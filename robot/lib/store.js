@@ -1,104 +1,86 @@
-const { execFile } = require("node:child_process");
 const fs = require("node:fs");
+const path = require("node:path");
 const { Client } = require("reduct-js");
+const nativeProcess = require("./process");
 
-// v1.19+ images run unprivileged, so run as the uid/gid owning the data dir or
-// the bind mount is not writable. Null off Linux.
-function currentUser() {
-  return typeof process.getuid === "function"
-    ? `${process.getuid()}:${process.getgid()}`
-    : null;
-}
-
-function sh(command, args = []) {
-  return new Promise((resolve, reject) => {
-    execFile(command, args, { encoding: "utf8" }, (error, stdout, stderr) => {
-      if (error) return reject(new Error(stderr || error.message));
-      resolve((stdout || "").trim());
-    });
-  });
-}
+const STORE_BINARY = path.join(__dirname, "..", "bin", "reductstore");
 
 function validReplications(store) {
   return (store.replications || []).filter(
-    (r) => r && r.name && r.srcBucket && r.dstBucket && r.dstHost,
+    (replication) =>
+      replication &&
+      replication.name &&
+      replication.srcBucket &&
+      replication.dstBucket &&
+      replication.dstHost,
   );
 }
 
-function buildRunArgs(store) {
-  const args = [
-    "run",
-    "-d",
-    "--name",
-    store.containerName,
-    "--restart",
-    "unless-stopped",
-    "-p",
-    `${store.httpPort}:8383`,
-    "-v",
-    `${store.dataPath}:/data`,
-    "-e",
-    `RS_API_TOKEN=${store.apiToken}`,
-  ];
-
-  const user = currentUser();
-  if (user) args.push("--user", user);
-
+function buildEnvironment(store) {
+  const env = {
+    RS_API_TOKEN: store.apiToken,
+    RS_DATA_PATH: store.dataPath,
+    RS_PORT: String(store.httpPort),
+  };
   const bucket = store.bucket || {};
   if (bucket.name) {
-    args.push("-e", `RS_BUCKET_1_NAME=${bucket.name}`);
+    env.RS_BUCKET_1_NAME = bucket.name;
     if (bucket.quotaType && bucket.quotaType !== "NONE") {
-      args.push("-e", `RS_BUCKET_1_QUOTA_TYPE=${bucket.quotaType}`);
-      if (bucket.quotaSize) {
-        args.push("-e", `RS_BUCKET_1_QUOTA_SIZE=${bucket.quotaSize}`);
-      }
+      env.RS_BUCKET_1_QUOTA_TYPE = bucket.quotaType;
+      if (bucket.quotaSize) env.RS_BUCKET_1_QUOTA_SIZE = bucket.quotaSize;
     }
   }
-
-  validReplications(store).forEach((r, i) => {
-    const p = `RS_REPLICATION_${i + 1}_`;
-    args.push("-e", `${p}NAME=${r.name}`);
-    args.push("-e", `${p}SRC_BUCKET=${r.srcBucket}`);
-    args.push("-e", `${p}DST_BUCKET=${r.dstBucket}`);
-    args.push("-e", `${p}DST_HOST=${r.dstHost}`);
-    if (r.dstToken) args.push("-e", `${p}DST_TOKEN=${r.dstToken}`);
-    const entries = (r.entries || "")
+  validReplications(store).forEach((replication, index) => {
+    const prefix = `RS_REPLICATION_${index + 1}_`;
+    env[`${prefix}NAME`] = replication.name;
+    env[`${prefix}SRC_BUCKET`] = replication.srcBucket;
+    env[`${prefix}DST_BUCKET`] = replication.dstBucket;
+    env[`${prefix}DST_HOST`] = replication.dstHost;
+    if (replication.dstToken) env[`${prefix}DST_TOKEN`] = replication.dstToken;
+    const entries = (replication.entries || "")
       .split(",")
-      .map((e) => e.trim())
+      .map((entry) => entry.trim())
       .filter(Boolean);
-    if (entries.length) args.push("-e", `${p}ENTRIES=${entries.join(",")}`);
-    if (r.when && r.when.trim()) args.push("-e", `${p}WHEN=${r.when.trim()}`);
-    if (r.mode) args.push("-e", `${p}MODE=${r.mode}`);
+    if (entries.length) env[`${prefix}ENTRIES`] = entries.join(",");
+    if (replication.when?.trim())
+      env[`${prefix}WHEN`] = replication.when.trim();
+    if (replication.mode) env[`${prefix}MODE`] = replication.mode;
   });
-
-  // extra env last so it can override the above
-  for (const e of store.env || []) {
-    if (e && e.key) args.push("-e", `${e.key}=${e.value ?? ""}`);
+  for (const variable of store.env || []) {
+    if (variable?.key) env[variable.key] = variable.value ?? "";
   }
-
-  args.push(store.image);
-  return args;
+  return env;
 }
 
-async function status(store, runner = sh) {
-  const out = await runner("docker", [
-    "ps",
-    "--filter",
-    `name=^/${store.containerName}$`,
-    "--format",
-    "{{.ID}}|{{.Status}}|{{.Image}}",
-  ]).catch(() => "");
-  if (!out) return { running: false, containerId: null, image: store.image };
-  const [containerId, dockerStatus, image] = out.split("|");
-  return { running: true, containerId, dockerStatus, image };
+function runtimeDir(store, options = {}) {
+  return options.runtimeDir || path.dirname(store.dataPath);
+}
+
+function executable(options = {}) {
+  return options.executable || STORE_BINARY;
+}
+
+function assertExecutable(file) {
+  try {
+    fs.accessSync(file, fs.constants.X_OK);
+  } catch {
+    throw new Error(
+      `ReductStore binary is unavailable at ${file}. Reinstall the capability.`,
+    );
+  }
+}
+
+async function status(store, options) {
+  return nativeProcess.status(runtimeDir(store, options), "reductstore");
 }
 
 async function alive(store) {
   try {
-    const res = await fetch(`http://127.0.0.1:${store.httpPort}/api/v1/alive`, {
-      method: "HEAD",
-    });
-    return res.ok;
+    const response = await fetch(
+      `http://127.0.0.1:${store.httpPort}/api/v1/alive`,
+      { method: "HEAD" },
+    );
+    return response.ok;
   } catch {
     return false;
   }
@@ -111,25 +93,27 @@ async function waitUntilAlive(
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await alive(store)) return true;
-    await new Promise((r) => setTimeout(r, intervalMs));
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   return false;
 }
 
-async function stop(store, runner = sh) {
-  await runner("docker", ["rm", "-f", store.containerName]).catch(() => {});
-  return { running: false };
+async function stop(store, options) {
+  return nativeProcess.stop(runtimeDir(store, options), "reductstore", options);
 }
 
-async function start(store, runner = sh) {
-  await stop(store, runner);
-  try {
-    fs.mkdirSync(store.dataPath, { recursive: true });
-  } catch {
-    // best effort; docker will surface a real permission error
-  }
-  await runner("docker", buildRunArgs(store));
-  return status(store, runner);
+async function start(store, options = {}) {
+  await stop(store, options);
+  fs.mkdirSync(store.dataPath, { recursive: true });
+  const command = executable(options);
+  assertExecutable(command);
+  return nativeProcess.start(
+    runtimeDir(store, options),
+    "reductstore",
+    command,
+    options.args || [],
+    { ...process.env, ...buildEnvironment(store) },
+  );
 }
 
 function storeClient(store) {
@@ -138,16 +122,15 @@ function storeClient(store) {
   });
 }
 
-// Plain JSON (pendingRecords is a bigint).
 async function getReplications(store, client = storeClient(store)) {
   try {
     const list = await client.getReplicationList();
-    return list.map((r) => ({
-      name: r.name,
-      mode: r.mode,
-      is_active: r.isActive,
-      is_provisioned: r.isProvisioned,
-      pending_records: Number(r.pendingRecords),
+    return list.map((replication) => ({
+      name: replication.name,
+      mode: replication.mode,
+      is_active: replication.isActive,
+      is_provisioned: replication.isProvisioned,
+      pending_records: Number(replication.pendingRecords),
     }));
   } catch {
     return [];
@@ -158,11 +141,11 @@ async function listReplicationNames(
   client,
   { retries = 12, delayMs = 500 } = {},
 ) {
-  for (let i = 0; i < retries; i++) {
+  for (let index = 0; index < retries; index++) {
     try {
-      return (await client.getReplicationList()).map((t) => t.name);
+      return (await client.getReplicationList()).map((task) => task.name);
     } catch {
-      await new Promise((r) => setTimeout(r, delayMs));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
   return [];
@@ -173,7 +156,7 @@ async function pruneReplications(
   managed = [],
   client = storeClient(store),
 ) {
-  const desired = new Set(validReplications(store).map((r) => r.name));
+  const desired = new Set(validReplications(store).map((task) => task.name));
   const managedSet = new Set(managed);
   const removed = [];
   for (const name of await listReplicationNames(client)) {
@@ -182,15 +165,14 @@ async function pruneReplications(
       await client.deleteReplication(name);
       removed.push(name);
     } catch {
-      // best effort
+      continue;
     }
   }
   return removed;
 }
 
 module.exports = {
-  sh,
-  buildRunArgs,
+  buildEnvironment,
   status,
   alive,
   waitUntilAlive,

@@ -1,6 +1,6 @@
 {
   "name": "@reductstore/reductstore",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Records, stores, and syncs data from ROS, Zenoh, MQTT, and logs to ReductStore.",
   "main": "main.js",
   "type": "commonjs",

@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  SKIP_NATIVE_BINARIES: "1"
+
 jobs:
   pack:
     runs-on: ubuntu-latest
