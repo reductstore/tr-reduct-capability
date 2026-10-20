@@ -1,44 +1,25 @@
 const fs = require("node:fs");
-const path = require("node:path");
 const os = require("node:os");
+const path = require("node:path");
 
+// Runtime artifacts (generated bridge TOML, store data, PID and log files).
 const STATE_DIR =
   process.env.STATE_DIR || path.join(os.homedir(), ".tr-reduct-capability");
+
+// Config lives in ~/.transitive/config.json, the file shared across every
+// capability sandbox. This capability reads and writes only its own section,
+// keyed by the package name, and leaves other sections untouched.
 const CONFIG_PATH =
-  process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
+  process.env.CONFIG_PATH ||
+  path.join(os.homedir(), ".transitive", "config.json");
+const CONFIG_KEY = process.env.CONFIG_KEY || require("../../package.json").name;
+
 const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
-
-// Keep identical to the ROS 2 template in web/reductstore-device.jsx (template
-// auto-swap treats a matching TOML as unedited).
-const DEFAULT_BRIDGE_TOML = `# ReductBridge config: https://www.reduct.store/docs/reduct-bridge
-# Destination: the ReductStore running on this robot.
-[remotes.reduct.local]
-url = "http://127.0.0.1:8383"
-token_api = "transitive-local-token"
-bucket = "robot-data"
-prefix = "bridge/"
-
-# A ROS 2 input. Add more [inputs.ros2.<name>] sections for more sources.
-[inputs.ros2.ros2_local]
-node_name = "reduct_bridge"
-queue_size = 128
-domain_id = 0
-schema_paths = ["/opt/ros/jazzy"]
-
-[[inputs.ros2.ros2_local.topics]]
-name = "/rosout"
-
-[pipelines.ingest]
-remote = "local"
-inputs = ["ros2_local"]
-`;
 
 function defaults() {
   return {
     autoStart: true,
     store: {
-      image: "reduct/store:latest",
-      containerName: "reductstore",
       httpPort: 8383,
       dataPath: path.join(STATE_DIR, "reductstore-data"),
       apiToken: "transitive-local-token",
@@ -47,51 +28,56 @@ function defaults() {
       env: [],
     },
     bridge: {
-      enabled: false, // operator enables it after configuring an input
-      image: "reduct/bridge:latest-ros2-jazzy",
-      containerName: "reduct-bridge",
+      enabled: false,
+      variant: "ros2-jazzy",
+      preset: "ros2",
       rosDomainId: 0,
-      mounts: [],
       env: [],
-      toml: DEFAULT_BRIDGE_TOML,
+      toml: "",
     },
   };
 }
 
 function deepMerge(target, source) {
-  const out = Array.isArray(target) ? [...target] : { ...target };
+  const output = Array.isArray(target) ? [...target] : { ...target };
   for (const key of Object.keys(source || {})) {
     const value = source[key];
     if (
       value &&
       typeof value === "object" &&
       !Array.isArray(value) &&
-      out[key] &&
-      typeof out[key] === "object" &&
-      !Array.isArray(out[key])
+      output[key] &&
+      typeof output[key] === "object" &&
+      !Array.isArray(output[key])
     ) {
-      out[key] = deepMerge(out[key], value);
+      output[key] = deepMerge(output[key], value);
     } else {
-      out[key] = value;
+      output[key] = value;
     }
   }
-  return out;
+  return output;
 }
 
-function loadConfig(filePath = CONFIG_PATH) {
+function readFile(filePath) {
   try {
-    const persisted = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    return deepMerge(defaults(), persisted);
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
-    return defaults();
+    return {};
   }
 }
 
-function saveConfig(current, patch, filePath = CONFIG_PATH) {
+function loadConfig(filePath = CONFIG_PATH, key = CONFIG_KEY) {
+  const file = readFile(filePath);
+  return deepMerge(defaults(), file[key] || {});
+}
+
+function saveConfig(current, patch, filePath = CONFIG_PATH, key = CONFIG_KEY) {
   const next = deepMerge(current, patch || {});
+  const file = readFile(filePath);
+  file[key] = next;
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const tmp = `${filePath}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(next, null, 2), "utf8");
+  fs.writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\n`, "utf8");
   fs.renameSync(tmp, filePath);
   return next;
 }
@@ -99,8 +85,8 @@ function saveConfig(current, patch, filePath = CONFIG_PATH) {
 module.exports = {
   STATE_DIR,
   CONFIG_PATH,
+  CONFIG_KEY,
   BRIDGE_TOML_PATH,
-  DEFAULT_BRIDGE_TOML,
   defaults,
   deepMerge,
   loadConfig,

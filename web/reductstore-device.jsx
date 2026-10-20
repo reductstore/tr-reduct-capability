@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createWebComponent, useTransitive } from "@transitive-sdk/utils-web";
 import { validateConfig } from "./lib/validate";
-import { Pipeline } from "./lib/ui";
 import {
   StoreSection,
   ReplicationSection,
@@ -33,16 +32,13 @@ const Device = ({ jwt, id, host, ssl }) => {
     mqttSync.publish(`${prefixVersion}/config`);
   }, [mqttSync, prefixVersion]);
 
-  // useTransitive returns the full data tree from the root, so navigate to this
-  // capability prefix to reach the device data the robot publishes.
-  const dev =
+  const device =
     [...prefixPathVersion, "device"].reduce(
-      (o, k) => (o == null ? o : o[k]),
+      (value, key) => (value == null ? value : value[key]),
       data,
     ) || {};
-  const remoteJson = dev.config?.json;
+  const remoteJson = device.config?.json;
 
-  // Load config once it arrives; the form stays gated until then.
   useEffect(() => {
     if (remoteJson && !cfg) {
       try {
@@ -67,26 +63,19 @@ const Device = ({ jwt, id, host, ssl }) => {
     if (!mqttSync) return;
     mqttSync.data.update(
       `${prefixVersion}/commands/request`,
-      JSON.stringify({
-        action,
-        requestId: String(Date.now()),
-        ts: Date.now(),
-      }),
+      JSON.stringify({ action, requestId: String(Date.now()), ts: Date.now() }),
     );
   };
-
   const control = (action) => {
     sendCommand(action);
     flash(`Sending ${action}…`);
   };
-
   const apply = () => {
     if (!mqttSync || !cfg) return;
     mqttSync.data.update(`${prefixVersion}/config/json`, JSON.stringify(cfg));
     setTimeout(() => sendCommand("restart"), 400);
     flash("Applying and restarting…");
   };
-
   const discard = () => {
     if (!remoteJson) return;
     try {
@@ -97,7 +86,6 @@ const Device = ({ jwt, id, host, ssl }) => {
   };
 
   const issues = cfg ? validateConfig(cfg) : [];
-
   const dirty =
     cfg != null && remoteJson != null && JSON.stringify(cfg) !== remoteJson;
 
@@ -141,25 +129,29 @@ const Device = ({ jwt, id, host, ssl }) => {
   const discardBridge = () =>
     remote && setCfg({ ...cfg, bridge: clone(remote.bridge) });
 
-  const state = dev.state || "unknown";
-  const storeText = dev.store?.running
-    ? dev.store?.alive
+  const state = device.state || "unknown";
+  const storeText = device.store?.running
+    ? device.store?.alive
       ? "running"
       : "starting"
     : "stopped";
-  const bridgeText = dev.bridge?.enabled
-    ? dev.bridge?.running
+  const bridgeText = device.bridge?.enabled
+    ? device.bridge?.running
       ? "running"
       : "stopped"
     : "disabled";
-
+  const error = device.error || device.store?.error || device.bridge?.error;
   const canStart = state !== "running";
   const canStop = state !== "stopped";
-  const storePort = dev.store?.httpPort || cfg?.store.httpPort;
+  const storePort = device.store?.httpPort || cfg?.store.httpPort;
   const consoleUrl =
-    dev.store?.host && storePort
-      ? `http://${dev.store.host}:${storePort}/`
+    device.store?.host && storePort
+      ? `http://${device.store.host}:${storePort}/`
       : null;
+  const logs = [
+    ["ReductStore", device.store?.log],
+    ["ReductBridge", device.bridge?.log],
+  ].filter(([, log]) => log);
 
   return (
     <div>
@@ -180,8 +172,8 @@ const Device = ({ jwt, id, host, ssl }) => {
           {" · "}bridge: <b>{bridgeText}</b>
         </span>
       </div>
-      {/* Your action (blue), settling into the robot's result (grey) or error (red). */}
-      {(feedback || dev.message) && (
+
+      {(error || feedback || device.message) && (
         <pre
           style={{
             whiteSpace: "pre-wrap",
@@ -189,26 +181,20 @@ const Device = ({ jwt, id, host, ssl }) => {
             margin: "6px 0",
             padding: "6px 8px",
             borderRadius: "4px",
-            ...(feedback
+            ...(error
               ? {
-                  background: "#eff6fc",
-                  color: "#0078d4",
-                  border: "1px solid #c7e0f4",
+                  background: "#fde7e9",
+                  color: "#a4262c",
+                  border: "1px solid #f1707b",
                 }
-              : state === "error"
-                ? {
-                    background: "#fde7e9",
-                    color: "#a4262c",
-                    border: "1px solid #f1707b",
-                  }
-                : {
-                    background: "#f4f4f4",
-                    color: "#555",
-                    border: "1px solid #eee",
-                  }),
+              : {
+                  background: "#f4f4f4",
+                  color: "#555",
+                  border: "1px solid #eee",
+                }),
           }}
         >
-          {feedback || `Last command: ${dev.message}`}
+          {error || feedback || device.message}
         </pre>
       )}
 
@@ -249,6 +235,11 @@ const Device = ({ jwt, id, host, ssl }) => {
         <button style={barBtn(dirty)} disabled={!dirty} onClick={discard}>
           Discard changes
         </button>
+        {consoleUrl && (
+          <a href={consoleUrl} target="_blank" rel="noreferrer">
+            Open ReductStore
+          </a>
+        )}
       </div>
       {issues.length > 0 && (
         <ul
@@ -265,8 +256,8 @@ const Device = ({ jwt, id, host, ssl }) => {
         </ul>
       )}
       <p style={hint}>
-        Start / Stop / Restart control the containers. Apply saves your config
-        edits to the robot and restarts so they take effect.
+        Start / Stop / Restart control the native processes. Apply saves your
+        edits to this robot's config file and restarts so they take effect.
       </p>
 
       {!cfg ? (
@@ -289,7 +280,6 @@ const Device = ({ jwt, id, host, ssl }) => {
         </div>
       ) : (
         <>
-          <Pipeline consoleUrl={consoleUrl} />
           <StoreSection
             cfg={cfg}
             setCfg={setCfg}
@@ -299,7 +289,7 @@ const Device = ({ jwt, id, host, ssl }) => {
           <ReplicationSection
             cfg={cfg}
             setCfg={setCfg}
-            dev={dev}
+            dev={device}
             remote={remote}
             consoleUrl={consoleUrl}
             dirty={repsDirty}
@@ -312,6 +302,27 @@ const Device = ({ jwt, id, host, ssl }) => {
             onDiscard={discardBridge}
           />
         </>
+      )}
+
+      {logs.length > 0 && (
+        <details>
+          <summary>Process logs</summary>
+          {logs.map(([name, log]) => (
+            <div key={name}>
+              <strong>{name}</strong>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap",
+                  fontSize: "12px",
+                  maxHeight: "240px",
+                  overflow: "auto",
+                }}
+              >
+                {log}
+              </pre>
+            </div>
+          ))}
+        </details>
       )}
     </div>
   );

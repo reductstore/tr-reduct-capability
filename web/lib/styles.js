@@ -14,7 +14,6 @@ const section = {
   borderRadius: "6px",
   background: "#fcfcfd",
 };
-// Amber-highlighted box when the section has unsaved edits.
 export const sectionStyle = (dirty) =>
   dirty
     ? { ...section, borderColor: "#e0a458", background: "#fffdf5" }
@@ -25,17 +24,17 @@ export const btn = {
   margin: "4px 4px 4px 0",
   cursor: "pointer",
 };
-export const barBtn = (on) => ({
+export const barBtn = (enabled) => ({
   padding: "6px 14px",
   borderRadius: "3px",
   border: "1px solid #ccc",
   background: "#f3f3f3",
   color: "#222",
-  cursor: on ? "pointer" : "not-allowed",
-  opacity: on ? 1 : 0.45,
+  cursor: enabled ? "pointer" : "not-allowed",
+  opacity: enabled ? 1 : 0.45,
 });
-export const barPrimary = (on) => ({
-  ...barBtn(on),
+export const barPrimary = (enabled) => ({
+  ...barBtn(enabled),
   background: "#0078d4",
   color: "#fff",
   border: "1px solid #0078d4",
@@ -57,20 +56,3 @@ export const badge = (state) => ({
   fontSize: "12px",
   textTransform: "uppercase",
 });
-
-export const dNode = {
-  padding: "5px 9px",
-  background: "#fff",
-  border: "1px solid #cfd8e3",
-  borderRadius: "4px",
-  fontSize: "11px",
-  textAlign: "center",
-  lineHeight: 1.2,
-};
-// External to this capability (not configured here): drawn with a dashed border.
-export const dExternal = {
-  ...dNode,
-  borderStyle: "dashed",
-  background: "#fafbfc",
-};
-export const dArrow = { color: "#8a97a8", fontSize: "15px" };

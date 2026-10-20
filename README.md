@@ -1,38 +1,58 @@
 # ReductStore
 
-Records your robot's data on the robot itself and syncs it to a central
-[ReductStore](https://www.reduct.store/). It runs two Docker containers, managed
-from the portal:
+Records robot data locally with native ReductStore and ReductBridge processes. The capability manages their lifecycle and reports their status through the Transitive portal.
 
-- **ReductStore**: a time-series object store that keeps data on the robot with
-  per-bucket size limits.
-- **ReductBridge**: ingests data from the robot (ROS 2, ROS 1, or IoT sources
-  such as MQTT, HTTP, and shell commands) into the store.
+## Platform support
 
-## Features
+The capability supports Linux x64. Its `robot` postinstall downloads the current ReductStore Pro ZIP from the Transitive endpoint and the ReductBridge binaries from their GitHub release. The npm package never contains those binaries, and installation on an unsupported platform or architecture is skipped. Set `SKIP_NATIVE_BINARIES=1` to skip the download (CI and dev).
 
-- Start, stop, and restart both containers from the portal.
-- Configure the store: image, HTTP port, API token, and bucket (name, quota
-  type, size).
-- Replicate data to a central ReductStore.
-- Pick a data source and edit its bridge configuration in the portal.
-- Fleet view: per-organization running / stopped / error counts, and how many
-  stores and bridges are up.
+| Component       | Source                            | Native artifacts                                     |
+| --------------- | --------------------------------- | ---------------------------------------------------- |
+| ReductStore Pro | Transitive `latest` endpoint      | `linux/x64`                                          |
+| ReductBridge    | GitHub `v0.5.0`, SHA-256 verified | ROS 2 Jazzy, ROS 2 Humble, ROS 1, IoT on `linux/x64` |
 
-## Prerequisites
-
-- Docker installed on the robot.
-- The data source you want to record, reachable from the robot: a running ROS
-  graph, an MQTT broker, or an HTTP endpoint. ROS ingestion uses host
-  networking.
+The Pro download is authorized and integrity-protected by HTTPS and a short-lived Azure Blob SAS URL. Bridge artifact versions and SHA-256 values remain pinned in `native-dependencies.json`.
 
 ## Configuration
 
-Everything is configured from the device view in the portal.
+Configuration lives in `~/.transitive/config.json` on the robot, under this capability's package-name key `@reductstore/reductstore`. Edit it from the device portal (below), or write the file directly. Changes take effect on restart.
 
-**Store**: set the image, HTTP port, API token, and bucket (name, quota type,
-size), and define replication tasks to sync data to a central ReductStore.
+```json
+{
+  "@reductstore/reductstore": {
+    "autoStart": true,
+    "store": {
+      "httpPort": 8383,
+      "dataPath": "/home/robot/.tr-reduct-capability/reductstore-data",
+      "apiToken": "replace-with-a-secret",
+      "bucket": {
+        "name": "robot-data",
+        "quotaType": "FIFO",
+        "quotaSize": "1GB"
+      },
+      "replications": [],
+      "env": []
+    },
+    "bridge": {
+      "enabled": true,
+      "variant": "ros2-jazzy",
+      "preset": "ros2",
+      "rosDomainId": 0,
+      "env": [],
+      "toml": ""
+    }
+  }
+}
+```
 
-**Bridge**: disabled by default. Pick an image for your data source and edit
-its TOML configuration. See the
-[ReductBridge docs](https://www.reduct.store/docs/reduct-bridge).
+`bridge.variant` selects the native executable. Valid values are `ros2-jazzy`, `ros2-humble`, `ros1`, and `iot`. `bridge.preset` generates the bridge TOML when `bridge.toml` is empty. Valid presets are `ros2`, `ros1`, `mqtt`, `http`, and `shell`. Set `bridge.toml` to a complete TOML document to override the preset for that robot.
+
+The Store receives its server, bucket, token, and replication settings as environment variables. The Bridge writes the rendered TOML to the local state directory before it starts.
+
+## Transitive billing
+
+The robot subscribes to Transitive's `/billing/token` data path. It passes the current token to ReductStore only as the runtime `RS_TRANSITIVE_BILLING_TOKEN` environment variable, never stores it in the capability configuration, and restarts the native processes when the token changes or expires. ReductStore Pro validates the token's signature, robot, organization, capability, and validity window.
+
+## Portal
+
+The device portal shows Store and Bridge process status, errors, and logs, controls the native processes with Start / Stop / Restart, and edits this robot's configuration (store settings, bridge variant, preset, and TOML). Apply & Restart saves the edits to the config file and restarts.
