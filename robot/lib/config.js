@@ -2,10 +2,18 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
+// Runtime artifacts (generated bridge TOML, store data, PID and log files).
 const STATE_DIR =
   process.env.STATE_DIR || path.join(os.homedir(), ".tr-reduct-capability");
+
+// Managed configuration source. Transitive Configuration Management maintains
+// ~/.transitive/config.json, the file shared across every capability sandbox,
+// and this capability reads its own section from the package-name key.
 const CONFIG_PATH =
-  process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
+  process.env.CONFIG_PATH ||
+  path.join(os.homedir(), ".transitive", "config.json");
+const CONFIG_KEY = process.env.CONFIG_KEY || require("../../package.json").name;
+
 const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
 
 function defaults() {
@@ -50,10 +58,10 @@ function deepMerge(target, source) {
   return output;
 }
 
-function loadConfig(filePath = CONFIG_PATH) {
+function loadConfig(filePath = CONFIG_PATH, key = CONFIG_KEY) {
   try {
-    const managed = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    return deepMerge(defaults(), managed);
+    const file = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return deepMerge(defaults(), file[key] || {});
   } catch {
     return defaults();
   }
@@ -62,6 +70,7 @@ function loadConfig(filePath = CONFIG_PATH) {
 module.exports = {
   STATE_DIR,
   CONFIG_PATH,
+  CONFIG_KEY,
   BRIDGE_TOML_PATH,
   defaults,
   deepMerge,

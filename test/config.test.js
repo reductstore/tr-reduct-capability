@@ -25,18 +25,30 @@ test("deepMerge merges managed nested configuration without dropping siblings", 
   assert.equal(merged.store.bucket.name, "robot-data");
 });
 
-test("loadConfig reads a Configuration Management JSON file", () => {
+test("loadConfig reads this capability's section from the shared transitive config", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
   const file = path.join(dir, "config.json");
+  const key = "@reductstore/reductstore";
   fs.writeFileSync(
     file,
-    JSON.stringify({ bridge: { enabled: true, variant: "iot" } }),
+    JSON.stringify({
+      global: { ignored: true },
+      "@transitive-robotics/webrtc-video": { bridge: { enabled: true } },
+      [key]: { bridge: { enabled: true, variant: "iot" } },
+    }),
   );
 
-  const loaded = loadConfig(file);
+  const loaded = loadConfig(file, key);
   assert.equal(loaded.bridge.enabled, true);
   assert.equal(loaded.bridge.variant, "iot");
   assert.equal(loaded.store.httpPort, defaults().store.httpPort);
+});
+
+test("loadConfig falls back to defaults when the capability has no section", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
+  const file = path.join(dir, "config.json");
+  fs.writeFileSync(file, JSON.stringify({ "@other/cap": { bridge: {} } }));
+  assert.deepEqual(loadConfig(file, "@reductstore/reductstore"), defaults());
 });
 
 test("loadConfig falls back to defaults on a corrupt file", () => {

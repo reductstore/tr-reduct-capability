@@ -15,32 +15,32 @@ Bump the pinned release and its SHA-256 in `native-dependencies.json` to move to
 
 ## Configuration
 
-Use Transitive Configuration Management to manage this JSON file on each robot:
-
-```text
-~/.tr-reduct-capability/config.json
-```
-
-Configuration Management merges fleet, group, and robot JSON values. Restart the capability from the portal after a managed configuration change.
+Transitive Configuration Management maintains `~/.transitive/config.json`, the file shared across every capability sandbox. This capability reads its own section, keyed by the package name `@reductstore/reductstore`. Configuration Management merges fleet, group, and robot values; restart the capability from the portal after a change.
 
 ```json
 {
-  "autoStart": true,
-  "store": {
-    "httpPort": 8383,
-    "dataPath": "/home/robot/.tr-reduct-capability/reductstore-data",
-    "apiToken": "replace-with-a-secret",
-    "bucket": { "name": "robot-data", "quotaType": "FIFO", "quotaSize": "1GB" },
-    "replications": [],
-    "env": []
-  },
-  "bridge": {
-    "enabled": true,
-    "variant": "ros2-jazzy",
-    "preset": "ros2",
-    "rosDomainId": 0,
-    "env": [],
-    "toml": ""
+  "@reductstore/reductstore": {
+    "autoStart": true,
+    "store": {
+      "httpPort": 8383,
+      "dataPath": "/home/robot/.tr-reduct-capability/reductstore-data",
+      "apiToken": "replace-with-a-secret",
+      "bucket": {
+        "name": "robot-data",
+        "quotaType": "FIFO",
+        "quotaSize": "1GB"
+      },
+      "replications": [],
+      "env": []
+    },
+    "bridge": {
+      "enabled": true,
+      "variant": "ros2-jazzy",
+      "preset": "ros2",
+      "rosDomainId": 0,
+      "env": [],
+      "toml": ""
+    }
   }
 }
 ```
