@@ -4,7 +4,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { defaults, deepMerge, loadConfig } = require("../robot/lib/config");
+const {
+  defaults,
+  deepMerge,
+  loadConfig,
+  saveConfig,
+} = require("../robot/lib/config");
 
 test("defaults define native store settings and a ROS 2 Jazzy bridge preset", () => {
   const config = defaults();
@@ -56,4 +61,22 @@ test("loadConfig falls back to defaults on a corrupt file", () => {
   const file = path.join(dir, "config.json");
   fs.writeFileSync(file, "{ not json");
   assert.deepEqual(loadConfig(file), defaults());
+});
+
+test("saveConfig writes our section and preserves other keys in the shared file", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
+  const file = path.join(dir, "config.json");
+  const key = "@reductstore/reductstore";
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ "@transitive-robotics/webrtc-video": { keep: true } }),
+  );
+
+  saveConfig(defaults(), { store: { httpPort: 9000 } }, file, key);
+
+  const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(raw["@transitive-robotics/webrtc-video"].keep, true);
+  assert.equal(raw[key].store.httpPort, 9000);
+  assert.equal(loadConfig(file, key).store.httpPort, 9000);
+  assert.equal(loadConfig(file, key).store.bucket.name, "robot-data");
 });

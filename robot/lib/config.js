@@ -6,9 +6,9 @@ const path = require("node:path");
 const STATE_DIR =
   process.env.STATE_DIR || path.join(os.homedir(), ".tr-reduct-capability");
 
-// Managed configuration source. Transitive Configuration Management maintains
-// ~/.transitive/config.json, the file shared across every capability sandbox,
-// and this capability reads its own section from the package-name key.
+// Config lives in ~/.transitive/config.json, the file shared across every
+// capability sandbox. This capability reads and writes only its own section,
+// keyed by the package name, and leaves other sections untouched.
 const CONFIG_PATH =
   process.env.CONFIG_PATH ||
   path.join(os.homedir(), ".transitive", "config.json");
@@ -58,13 +58,28 @@ function deepMerge(target, source) {
   return output;
 }
 
-function loadConfig(filePath = CONFIG_PATH, key = CONFIG_KEY) {
+function readFile(filePath) {
   try {
-    const file = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    return deepMerge(defaults(), file[key] || {});
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
-    return defaults();
+    return {};
   }
+}
+
+function loadConfig(filePath = CONFIG_PATH, key = CONFIG_KEY) {
+  const file = readFile(filePath);
+  return deepMerge(defaults(), file[key] || {});
+}
+
+function saveConfig(current, patch, filePath = CONFIG_PATH, key = CONFIG_KEY) {
+  const next = deepMerge(current, patch || {});
+  const file = readFile(filePath);
+  file[key] = next;
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tmp = `${filePath}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\n`, "utf8");
+  fs.renameSync(tmp, filePath);
+  return next;
 }
 
 module.exports = {
@@ -75,4 +90,5 @@ module.exports = {
   defaults,
   deepMerge,
   loadConfig,
+  saveConfig,
 };

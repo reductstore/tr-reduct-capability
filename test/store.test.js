@@ -7,7 +7,7 @@ const path = require("node:path");
 const store = require("../robot/lib/store");
 const { defaults } = require("../robot/lib/config");
 
-test("buildEnvironment configures native ReductStore from managed configuration", () => {
+test("buildEnvironment configures native ReductStore from its config section", () => {
   const env = store.buildEnvironment(defaults().store);
   assert.equal(env.RS_API_TOKEN, "transitive-local-token");
   assert.equal(env.RS_BUCKET_1_NAME, "robot-data");

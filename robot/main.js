@@ -7,7 +7,7 @@ const {
 } = require("@transitive-sdk/utils");
 const store = require("./lib/store");
 const bridge = require("./lib/bridge");
-const { loadConfig, CONFIG_PATH } = require("./lib/config");
+const { loadConfig, saveConfig, CONFIG_PATH } = require("./lib/config");
 
 const log = getLogger("reductstore-robot");
 log.setLevel(process.env.LOG_LEVEL || "info");
@@ -37,6 +37,7 @@ function deriveState(storeStatus, bridgeStatus, error) {
 function publishDetails() {
   if (!mqttSync) return;
   const data = mqttSync.data;
+  data.update("/device/config/json", JSON.stringify(config));
   data.update("/device/configPath", CONFIG_PATH);
   data.update("/device/store/host", os.hostname());
   data.update("/device/store/httpPort", config.store.httpPort);
@@ -134,6 +135,21 @@ function onCommand(value, key) {
   enqueue(() => runCommand(command.action));
 }
 
+function onConfig(value, key) {
+  if (!key || key.split("/").pop() !== "json") return;
+  let patch;
+  try {
+    patch = JSON.parse(value);
+  } catch {
+    log.warn("ignoring invalid config json");
+    return;
+  }
+  config = saveConfig(config, patch);
+  log.info("config updated");
+  publishDetails();
+  enqueue(() => publishStatus("config saved"));
+}
+
 async function gracefulShutdown(signal) {
   log.info(`${signal} received, shutting down`);
   mqttSync?.mqtt?.end?.();
@@ -170,8 +186,10 @@ async function boot() {
     });
 
     mqttSync.subscribe("/commands");
+    mqttSync.subscribe("/config");
     mqttSync.publish("/device");
     mqttSync.data.subscribePathFlat("/commands", onCommand);
+    mqttSync.data.subscribePathFlat("/config", onConfig);
 
     publishDetails();
     setInterval(
