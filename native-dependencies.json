@@ -2,9 +2,10 @@
   "linux-x64": [
     {
       "bin": "reductstore",
-      "entry": "reductstore",
-      "url": "https://github.com/reductstore/reductstore/releases/download/v1.21.2/reductstore.x86_64-unknown-linux-gnu.tar.gz",
-      "sha256": "55982f45836f72b9d99017d76c0b5d757e6557d30a9e6950bae3880893d6e956"
+      "entry": "reductstore-pro",
+      "archive": "zip",
+      "integrity": "transport",
+      "url": "https://account.reduct.store/v1/transitive/reductstore-pro/linux/x64"
     },
     {
       "bin": "reduct-bridge-ros2-jazzy",

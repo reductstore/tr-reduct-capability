@@ -8,6 +8,7 @@ const {
 const store = require("./lib/store");
 const bridge = require("./lib/bridge");
 const { loadConfig, saveConfig, CONFIG_PATH } = require("./lib/config");
+const { expiryFromToken } = require("./lib/billing-token");
 
 const log = getLogger("reductstore-robot");
 log.setLevel(process.env.LOG_LEVEL || "info");
@@ -19,11 +20,45 @@ let mqttSync;
 let config = loadConfig();
 let lastError = null;
 let lastRequestId = null;
+let billingToken = null;
+let billingTokenTimer = null;
 let chain = Promise.resolve();
 
 function enqueue(fn) {
   chain = chain.then(fn).catch((error) => log.warn(error.message));
   return chain;
+}
+
+function restartForBillingToken() {
+  enqueue(async () => {
+    const storeStatus = await store.status(config.store);
+    if (!config.autoStart && !storeStatus.running) return;
+    await runCommand("restart");
+  });
+}
+
+function onBillingToken(token) {
+  if (token === billingToken) return;
+  clearTimeout(billingTokenTimer);
+  billingTokenTimer = null;
+
+  const expiresAt = expiryFromToken(token);
+  if (!expiresAt) {
+    billingToken = null;
+    log.warn("invalid Transitive billing token");
+    restartForBillingToken();
+    return;
+  }
+
+  billingToken = token;
+  const delay = Math.max(0, expiresAt - Date.now());
+  billingTokenTimer = setTimeout(() => {
+    billingToken = null;
+    billingTokenTimer = null;
+    log.info("Transitive billing token expired");
+    restartForBillingToken();
+  }, delay);
+  restartForBillingToken();
 }
 
 function deriveState(storeStatus, bridgeStatus, error) {
@@ -88,7 +123,7 @@ async function bringUp(message) {
   const managed = (await store.getReplications(config.store).catch(() => []))
     .filter((task) => task.is_provisioned)
     .map((task) => task.name);
-  await store.start(config.store);
+  await store.start(config.store, { billingToken });
   const ready = await store.waitUntilAlive(config.store);
   if (!ready) throw new Error("ReductStore did not become ready in time");
   await store.pruneReplications(config.store, managed);
@@ -153,6 +188,7 @@ function onConfig(value, key) {
 async function gracefulShutdown(signal) {
   log.info(`${signal} received, shutting down`);
   mqttSync?.mqtt?.end?.();
+  clearTimeout(billingTokenTimer);
   process.exit(0);
 }
 
@@ -190,6 +226,8 @@ async function boot() {
     mqttSync.publish("/device");
     mqttSync.data.subscribePathFlat("/commands", onCommand);
     mqttSync.data.subscribePathFlat("/config", onConfig);
+    mqttSync.subscribe("/billing/token");
+    mqttSync.data.subscribePathFlat("/billing/token", onBillingToken);
 
     publishDetails();
     setInterval(

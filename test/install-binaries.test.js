@@ -23,6 +23,16 @@ function makeArchive(dir, name, entry, body) {
   return archive;
 }
 
+function makeZip(dir, name, entry, body) {
+  const source = fs.mkdtempSync(path.join(os.tmpdir(), "tr-native-src-"));
+  const file = path.join(source, entry);
+  fs.writeFileSync(file, body, { mode: 0o755 });
+  const archive = path.join(dir, name);
+  execFileSync("zip", ["-q", "-j", archive, file]);
+  fs.rmSync(source, { recursive: true, force: true });
+  return archive;
+}
+
 async function serve(dir) {
   let requests = 0;
   const server = http.createServer((request, response) => {
@@ -56,6 +66,13 @@ test("exposes the complete Linux x64 native binary set from the manifest", () =>
     "reduct-bridge-ros1",
     "reduct-bridge-iot",
   ]);
+  assert.deepEqual(installer.assetsFor("linux", "x64")[0], {
+    bin: "reductstore",
+    entry: "reductstore-pro",
+    archive: "zip",
+    integrity: "transport",
+    url: "https://account.reduct.store/v1/transitive/reductstore-pro/linux/x64",
+  });
   assert.throws(() => installer.assetsFor("linux", "arm64"), /Unsupported/);
 });
 
@@ -103,6 +120,42 @@ test("downloads the detected architecture, verifies checksums, and caches", asyn
       server.requests,
       downloaded,
       "cached install must not refetch",
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test("downloads the Transitive Pro ZIP through its trusted endpoint", async () => {
+  const release = fs.mkdtempSync(path.join(os.tmpdir(), "tr-native-pro-"));
+  const destination = fs.mkdtempSync(
+    path.join(os.tmpdir(), "tr-native-pro-bin-"),
+  );
+  const server = await serve(release);
+  try {
+    makeZip(release, "reductstore.zip", "reductstore", "reductstore-pro");
+    const manifest = {
+      "linux-x64": [
+        {
+          bin: "reductstore",
+          entry: "reductstore",
+          archive: "zip",
+          integrity: "transport",
+          url: `http://127.0.0.1:${server.port}/reductstore.zip`,
+        },
+      ],
+    };
+
+    await installer.installNativeBinaries({
+      platform: "linux",
+      architecture: "x64",
+      destination,
+      manifest,
+    });
+
+    assert.equal(
+      fs.readFileSync(path.join(destination, "reductstore"), "utf8"),
+      "reductstore-pro",
     );
   } finally {
     await server.close();

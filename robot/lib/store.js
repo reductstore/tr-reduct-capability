@@ -16,7 +16,7 @@ function validReplications(store) {
   );
 }
 
-function buildEnvironment(store) {
+function buildEnvironment(store, { billingToken } = {}) {
   const env = {
     RS_API_TOKEN: store.apiToken,
     RS_DATA_PATH: store.dataPath,
@@ -49,6 +49,7 @@ function buildEnvironment(store) {
   for (const variable of store.env || []) {
     if (variable?.key) env[variable.key] = variable.value ?? "";
   }
+  if (billingToken) env.RS_TRANSITIVE_BILLING_TOKEN = billingToken;
   return env;
 }
 
@@ -112,7 +113,7 @@ async function start(store, options = {}) {
     "reductstore",
     command,
     options.args || [],
-    { ...process.env, ...buildEnvironment(store) },
+    { ...process.env, ...buildEnvironment(store, options) },
   );
 }
 

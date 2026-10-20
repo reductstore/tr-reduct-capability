@@ -46,12 +46,29 @@ async function download(url, fetchImpl) {
   return Buffer.from(await response.arrayBuffer());
 }
 
-function assertSafeArchive(archive) {
-  const entries = execFileSync("tar", ["-tzf", archive], { encoding: "utf8" })
+function archiveType(asset) {
+  const type = asset.archive || "tar.gz";
+  if (type !== "tar.gz" && type !== "zip") {
+    throw new Error(`Unsupported archive type for ${asset.bin}: ${type}.`);
+  }
+  return type;
+}
+
+function assertSafeArchive(archive, asset) {
+  const type = archiveType(asset);
+  const entries = execFileSync(
+    type === "zip" ? "unzip" : "tar",
+    type === "zip" ? ["-Z1", archive] : ["-tzf", archive],
+    { encoding: "utf8" },
+  )
     .split("\n")
     .filter(Boolean);
   for (const entry of entries) {
-    if (path.isAbsolute(entry) || entry.split("/").includes("..")) {
+    const normalized = entry.replaceAll("\\", "/");
+    if (
+      path.posix.isAbsolute(normalized) ||
+      normalized.split("/").includes("..")
+    ) {
       throw new Error(`Unsafe archive entry: ${entry}`);
     }
   }
@@ -72,12 +89,18 @@ function findEntry(directory, entry) {
 }
 
 function extractBinary(archive, asset, destination) {
-  assertSafeArchive(archive);
+  const type = archiveType(asset);
+  assertSafeArchive(archive, asset);
   const directory = fs.mkdtempSync(
     path.join(os.tmpdir(), "reductstore-extract-"),
   );
   try {
-    execFileSync("tar", ["-xzf", archive, "-C", directory]);
+    execFileSync(
+      type === "zip" ? "unzip" : "tar",
+      type === "zip"
+        ? ["-q", archive, "-d", directory]
+        : ["-xzf", archive, "-C", directory],
+    );
     const source = findEntry(directory, asset.entry);
     if (!source) throw new Error(`Missing ${asset.entry} in ${asset.url}.`);
     const target = path.join(destination, asset.bin);
@@ -93,7 +116,15 @@ function markerPath(destination) {
 }
 
 function signatureFor(assets) {
-  return JSON.stringify(assets.map((asset) => [asset.bin, asset.sha256]));
+  return JSON.stringify(
+    assets.map((asset) => [
+      asset.bin,
+      asset.url,
+      asset.archive || "tar.gz",
+      asset.sha256 || null,
+      asset.integrity || null,
+    ]),
+  );
 }
 
 function isInstalled(destination, assets) {
@@ -107,6 +138,17 @@ function isInstalled(destination, assets) {
     );
   } catch {
     return false;
+  }
+}
+
+function assertIntegrity(buffer, asset) {
+  if (!asset.sha256) {
+    if (asset.integrity === "transport") return;
+    throw new Error(`Missing checksum for ${asset.bin}.`);
+  }
+  const expected = asset.sha256.replace(/^sha256:/, "").toLowerCase();
+  if (sha256(buffer) !== expected) {
+    throw new Error(`Checksum mismatch for ${asset.bin} from ${asset.url}.`);
   }
 }
 
@@ -126,13 +168,8 @@ async function installNativeBinaries({
   try {
     for (const asset of assets) {
       const buffer = await download(asset.url, fetchImpl);
-      const expected = asset.sha256.replace(/^sha256:/, "").toLowerCase();
-      if (sha256(buffer) !== expected) {
-        throw new Error(
-          `Checksum mismatch for ${asset.bin} from ${asset.url}.`,
-        );
-      }
-      const archive = path.join(stage, path.basename(asset.url));
+      assertIntegrity(buffer, asset);
+      const archive = path.join(stage, `${asset.bin}.${archiveType(asset)}`);
       fs.writeFileSync(archive, buffer);
       extractBinary(archive, asset, destination);
     }

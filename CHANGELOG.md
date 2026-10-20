@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Replace Docker with native ReductStore and ReductBridge processes, configured from `~/.transitive/config.json`, [PR-6](https://github.com/reductstore/tr-reduct-capability/pull/6).
+- Replace Docker with native ReductStore and ReductBridge processes and install the latest Transitive ReductStore Pro binary, [PR-6](https://github.com/reductstore/tr-reduct-capability/pull/6).
 
 ## [0.1.0] - 2026-07-23
 
