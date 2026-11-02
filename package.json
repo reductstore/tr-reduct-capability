@@ -30,10 +30,7 @@
     "versionNamespace": "minor"
   },
   "transitiverobotics": {
-    "title": "ReductStore",
-    "videos": [
-      "https://www.youtube.com/embed/xYrL1qBhfY4"
-    ]
+    "title": "ReductStore"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

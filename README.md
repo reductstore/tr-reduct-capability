@@ -51,7 +51,7 @@ The Store receives its server, bucket, token, and replication settings as enviro
 
 ## Transitive billing
 
-The robot subscribes to Transitive's `/billing/token` data path. It passes the current token to ReductStore only as the runtime `RS_TRANSITIVE_BILLING_TOKEN` environment variable, never stores it in the capability configuration, and restarts the native processes when the token changes or expires. ReductStore Pro validates the token's signature, robot, organization, capability, and validity window.
+The ReductStore Pro release that includes [reductstore/reductstore-pro#203](https://github.com/reductstore/reductstore-pro/pull/203) validates the token's signature, robot, organization, capability, and validity window.
 
 ## Portal
 
