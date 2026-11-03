@@ -16,7 +16,7 @@ function validReplications(store) {
   );
 }
 
-function buildEnvironment(store, { billingToken } = {}) {
+function buildEnvironment(store) {
   const env = {
     RS_API_TOKEN: store.apiToken,
     RS_DATA_PATH: store.dataPath,
@@ -49,7 +49,6 @@ function buildEnvironment(store, { billingToken } = {}) {
   for (const variable of store.env || []) {
     if (variable?.key) env[variable.key] = variable.value ?? "";
   }
-  if (billingToken) env.RS_TRANSITIVE_BILLING_TOKEN = billingToken;
   return env;
 }
 

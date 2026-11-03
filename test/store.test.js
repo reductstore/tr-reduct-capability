@@ -17,16 +17,12 @@ test("buildEnvironment configures native ReductStore from its config section", (
   assert.equal(env.RS_PORT, "8383");
 });
 
-test("buildEnvironment accepts the Transitive billing token only at runtime", () => {
-  const token = "transitive-billing-token";
+test("buildEnvironment does not propagate billing tokens to ReductStore", () => {
+  const env = store.buildEnvironment(defaults().store, {
+    billingToken: "transitive-billing-token",
+  });
 
-  const env = store.buildEnvironment(defaults().store, { billingToken: token });
-
-  assert.equal(env.RS_TRANSITIVE_BILLING_TOKEN, token);
-  assert.equal(
-    store.buildEnvironment(defaults().store).RS_TRANSITIVE_BILLING_TOKEN,
-    undefined,
-  );
+  assert.equal(env.RS_TRANSITIVE_BILLING_TOKEN, undefined);
 });
 
 test("buildEnvironment omits disabled quotas and incomplete replications", () => {
@@ -74,6 +70,7 @@ test("reports native process errors from its log", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-store-error-"));
   const config = {
     ...defaults().store,
+    dataPath: path.join(dir, "data"),
   };
   const processOptions = {
     runtimeDir: dir,

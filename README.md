@@ -15,44 +15,44 @@ The Pro download is authorized and integrity-protected by HTTPS and a short-live
 
 ## Configuration
 
-Configuration lives in `~/.transitive/config.json` on the robot, under this capability's package-name key `@reductstore/reductstore`. Edit it from the device portal (below), or write the file directly. Changes take effect on restart.
+Configuration belongs to this capability and persists at `/home/transitive/config.json` inside its sandbox. On the robot, Transitive maps that path to `~/.transitive/packages/@reductstore-tr/reductstore/config.json`. It is intentionally separate from Transitive Configuration Management.
+
+The device portal sends configuration changes over MQTTSync. Apply & Restart atomically saves the complete configuration to this private file and restarts the native processes.
 
 ```json
 {
-  "@reductstore/reductstore": {
-    "autoStart": true,
-    "store": {
-      "httpPort": 8383,
-      "dataPath": "/home/robot/.tr-reduct-capability/reductstore-data",
-      "apiToken": "replace-with-a-secret",
-      "bucket": {
-        "name": "robot-data",
-        "quotaType": "FIFO",
-        "quotaSize": "1GB"
-      },
-      "replications": [],
-      "env": []
+  "autoStart": true,
+  "store": {
+    "httpPort": 8383,
+    "dataPath": "/home/transitive/state/reductstore-data",
+    "apiToken": "replace-with-a-secret",
+    "bucket": {
+      "name": "robot-data",
+      "quotaType": "FIFO",
+      "quotaSize": "1GB"
     },
-    "bridge": {
-      "enabled": true,
-      "variant": "ros2-jazzy",
-      "preset": "ros2",
-      "rosDomainId": 0,
-      "env": [],
-      "toml": ""
-    }
+    "replications": [],
+    "env": []
+  },
+  "bridge": {
+    "enabled": true,
+    "variant": "ros2-jazzy",
+    "preset": "ros2",
+    "rosDomainId": 0,
+    "env": [],
+    "toml": ""
   }
 }
 ```
 
 `bridge.variant` selects the native executable. Valid values are `ros2-jazzy`, `ros2-humble`, `ros1`, and `iot`. `bridge.preset` generates the bridge TOML when `bridge.toml` is empty. Valid presets are `ros2`, `ros1`, `mqtt`, `http`, and `shell`. Set `bridge.toml` to a complete TOML document to override the preset for that robot.
 
-The Store receives its server, bucket, token, and replication settings as environment variables. The Bridge writes the rendered TOML to the local state directory before it starts.
+The Store receives its server, bucket, token, and replication settings as environment variables. The Bridge writes the rendered TOML to the capability state directory before it starts.
 
 ## Transitive billing
 
-The ReductStore Pro release that includes [reductstore/reductstore-pro#203](https://github.com/reductstore/reductstore-pro/pull/203) validates the token's signature, robot, organization, capability, and validity window.
+The robot subscribes to Transitive's `/billing/token` data path. It verifies the token's RS256 signature, robot, organization, capability, and validity window before starting ReductStore or ReductBridge. A refreshed valid token updates the entitlement deadline without restarting either process. An invalid or expired token stops both processes. The token is never stored or passed to ReductStore Pro.
 
 ## Portal
 
-The device portal shows Store and Bridge process status, errors, and logs, controls the native processes with Start / Stop / Restart, and edits this robot's configuration (store settings, bridge variant, preset, and TOML). Apply & Restart saves the edits to the config file and restarts.
+The device portal shows Store and Bridge process status, errors, logs, and billing entitlement state. It controls the native processes with Start / Stop / Restart and edits this robot's private capability configuration.

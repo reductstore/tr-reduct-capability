@@ -2,18 +2,14 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-// Runtime artifacts (generated bridge TOML, store data, PID and log files).
-const STATE_DIR =
-  process.env.STATE_DIR || path.join(os.homedir(), ".tr-reduct-capability");
-
-// Config lives in ~/.transitive/config.json, the file shared across every
-// capability sandbox. This capability reads and writes only its own section,
-// keyed by the package name, and leaves other sections untouched.
+const CAPABILITY_HOME =
+  process.env.CAPABILITY_HOME ||
+  (os.homedir() === "/home/transitive"
+    ? "/home/transitive"
+    : path.join(os.homedir(), ".tr-reduct-capability"));
+const STATE_DIR = process.env.STATE_DIR || path.join(CAPABILITY_HOME, "state");
 const CONFIG_PATH =
-  process.env.CONFIG_PATH ||
-  path.join(os.homedir(), ".transitive", "config.json");
-const CONFIG_KEY = process.env.CONFIG_KEY || require("../../package.json").name;
-
+  process.env.CONFIG_PATH || path.join(CAPABILITY_HOME, "config.json");
 const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
 
 function defaults() {
@@ -66,26 +62,29 @@ function readFile(filePath) {
   }
 }
 
-function loadConfig(filePath = CONFIG_PATH, key = CONFIG_KEY) {
-  const file = readFile(filePath);
-  return deepMerge(defaults(), file[key] || {});
+function loadConfig(filePath = CONFIG_PATH) {
+  return deepMerge(defaults(), readFile(filePath));
 }
 
-function saveConfig(current, patch, filePath = CONFIG_PATH, key = CONFIG_KEY) {
+function saveConfig(current, patch, filePath = CONFIG_PATH) {
   const next = deepMerge(current, patch || {});
-  const file = readFile(filePath);
-  file[key] = next;
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const tmp = `${filePath}.tmp`;
-  fs.writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\n`, "utf8");
+  const directory = path.dirname(filePath);
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  fs.chmodSync(directory, 0o700);
+  const tmp = path.join(directory, `.${path.basename(filePath)}.tmp`);
+  fs.writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
   fs.renameSync(tmp, filePath);
+  fs.chmodSync(filePath, 0o600);
   return next;
 }
 
 module.exports = {
+  CAPABILITY_HOME,
   STATE_DIR,
   CONFIG_PATH,
-  CONFIG_KEY,
   BRIDGE_TOML_PATH,
   defaults,
   deepMerge,

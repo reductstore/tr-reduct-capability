@@ -140,9 +140,12 @@ const Device = ({ jwt, id, host, ssl }) => {
       ? "running"
       : "stopped"
     : "disabled";
+
+  const billingValid = device.billing?.state === "valid";
   const error = device.error || device.store?.error || device.bridge?.error;
-  const canStart = state !== "running";
+  const canStart = state !== "running" && billingValid;
   const canStop = state !== "stopped";
+  const canRestart = billingValid;
   const storePort = device.store?.httpPort || cfg?.store.httpPort;
   const consoleUrl =
     device.store?.host && storePort
@@ -167,6 +170,9 @@ const Device = ({ jwt, id, host, ssl }) => {
         }}
       >
         <span style={badge(state)}>{state}</span>
+        <span style={badge(billingValid ? "running" : "error")}>
+          billing: {billingValid ? "valid" : "invalid"}
+        </span>
         <span style={{ fontSize: "13px", color: "#444" }}>
           store: <b>{storeText}</b>
           {" · "}bridge: <b>{bridgeText}</b>
@@ -221,7 +227,11 @@ const Device = ({ jwt, id, host, ssl }) => {
         >
           Stop
         </button>
-        <button style={barBtn(true)} onClick={() => control("restart")}>
+        <button
+          style={barBtn(canRestart)}
+          disabled={!canRestart}
+          onClick={() => control("restart")}
+        >
           Restart
         </button>
         <span style={divider} />

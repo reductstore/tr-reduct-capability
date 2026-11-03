@@ -7,8 +7,9 @@ const {
 } = require("@transitive-sdk/utils");
 const store = require("./lib/store");
 const bridge = require("./lib/bridge");
-const { loadConfig, saveConfig, CONFIG_PATH } = require("./lib/config");
-const { expiryFromToken } = require("./lib/billing-token");
+const { loadConfig, saveConfig } = require("./lib/config");
+const { createBillingGate } = require("./lib/billing-gate");
+const { verifyBillingToken } = require("./lib/billing-token");
 
 const log = getLogger("reductstore-robot");
 log.setLevel(process.env.LOG_LEVEL || "info");
@@ -20,8 +21,7 @@ let mqttSync;
 let config = loadConfig();
 let lastError = null;
 let lastRequestId = null;
-let billingToken = null;
-let billingTokenTimer = null;
+let resumeWhenEntitled = false;
 let chain = Promise.resolve();
 
 function enqueue(fn) {
@@ -29,37 +29,44 @@ function enqueue(fn) {
   return chain;
 }
 
-function restartForBillingToken() {
-  enqueue(async () => {
-    const storeStatus = await store.status(config.store);
-    if (!config.autoStart && !storeStatus.running) return;
-    await runCommand("restart");
-  });
+function billingStatus() {
+  if (isStandalone) return { entitled: true, expiresAt: null };
+  return billingGate.status();
 }
 
-function onBillingToken(token) {
-  if (token === billingToken) return;
-  clearTimeout(billingTokenTimer);
-  billingTokenTimer = null;
-
-  const expiresAt = expiryFromToken(token);
-  if (!expiresAt) {
-    billingToken = null;
-    log.warn("invalid Transitive billing token");
-    restartForBillingToken();
-    return;
-  }
-
-  billingToken = token;
-  const delay = Math.max(0, expiresAt - Date.now());
-  billingTokenTimer = setTimeout(() => {
-    billingToken = null;
-    billingTokenTimer = null;
-    log.info("Transitive billing token expired");
-    restartForBillingToken();
-  }, delay);
-  restartForBillingToken();
+function hasBillingEntitlement() {
+  return billingStatus().entitled;
 }
+
+async function suspendForBilling(reason) {
+  const [storeStatus, bridgeStatus] = await Promise.all([
+    store.status(config.store),
+    bridge.status(config.bridge),
+  ]);
+  resumeWhenEntitled =
+    config.autoStart && (storeStatus.running || bridgeStatus.running);
+  await runCommand("stop");
+  await publishStatus(`billing entitlement revoked: ${reason}`);
+}
+
+function restoreForBilling() {
+  if (!resumeWhenEntitled) return;
+  resumeWhenEntitled = false;
+  enqueue(() => runCommand("start"));
+}
+
+const billingGate = isStandalone
+  ? null
+  : createBillingGate({
+      verify: (token) =>
+        verifyBillingToken(token, {
+          deviceId: process.env.TR_DEVICEID,
+          userId: process.env.TR_USERID,
+          capability: process.env.npm_package_name,
+        }),
+      onEntitled: restoreForBilling,
+      onDenied: (reason) => enqueue(() => suspendForBilling(reason)),
+    });
 
 function deriveState(storeStatus, bridgeStatus, error) {
   if (error) return "error";
@@ -73,7 +80,6 @@ function publishDetails() {
   if (!mqttSync) return;
   const data = mqttSync.data;
   data.update("/device/config/json", JSON.stringify(config));
-  data.update("/device/configPath", CONFIG_PATH);
   data.update("/device/store/host", os.hostname());
   data.update("/device/store/httpPort", config.store.httpPort);
   data.update("/device/bridge/enabled", !!config.bridge.enabled);
@@ -97,6 +103,7 @@ async function publishStatus(message) {
     lastError ||
     storeStatus.error ||
     (config.bridge.enabled && bridgeStatus.error);
+  const billing = billingStatus();
 
   const data = mqttSync.data;
   data.update(
@@ -105,6 +112,8 @@ async function publishStatus(message) {
   );
   if (message !== undefined) data.update("/device/message", message);
   data.update("/device/error", runtimeError || null);
+  data.update("/device/billing/state", billing.entitled ? "valid" : "invalid");
+  data.update("/device/billing/expiresAt", billing.expiresAt);
   data.update("/device/store/running", storeStatus.running);
   data.update("/device/store/alive", alive);
   data.update("/device/store/pid", storeStatus.pid || null);
@@ -123,7 +132,7 @@ async function bringUp(message) {
   const managed = (await store.getReplications(config.store).catch(() => []))
     .filter((task) => task.is_provisioned)
     .map((task) => task.name);
-  await store.start(config.store, { billingToken });
+  await store.start(config.store);
   const ready = await store.waitUntilAlive(config.store);
   if (!ready) throw new Error("ReductStore did not become ready in time");
   await store.pruneReplications(config.store, managed);
@@ -136,6 +145,12 @@ async function bringUp(message) {
 
 async function runCommand(action) {
   try {
+    if (action === "start" || action === "restart") {
+      if (!hasBillingEntitlement()) {
+        throw new Error("a valid Transitive billing token is required");
+      }
+    }
+
     if (action === "start") {
       await bringUp("started");
     } else if (action === "stop") {
@@ -180,15 +195,23 @@ function onConfig(value, key) {
     return;
   }
   config = saveConfig(config, patch);
+  if (!config.autoStart) resumeWhenEntitled = false;
   log.info("config updated");
   publishDetails();
   enqueue(() => publishStatus("config saved"));
 }
 
+function onBillingToken(token) {
+  const result = billingGate.update(token);
+  if (!result.valid)
+    log.warn(`invalid Transitive billing token: ${result.reason}`);
+  publishStatus().catch((error) => log.warn(error.message));
+}
+
 async function gracefulShutdown(signal) {
   log.info(`${signal} received, shutting down`);
   mqttSync?.mqtt?.end?.();
-  clearTimeout(billingTokenTimer);
+  billingGate?.dispose();
   process.exit(0);
 }
 
@@ -223,11 +246,13 @@ async function boot() {
 
     mqttSync.subscribe("/commands");
     mqttSync.subscribe("/config");
+    mqttSync.subscribe("/billing/token");
     mqttSync.publish("/device");
     mqttSync.data.subscribePathFlat("/commands", onCommand);
     mqttSync.data.subscribePathFlat("/config", onConfig);
-    mqttSync.subscribe("/billing/token");
-    mqttSync.data.subscribePathFlat("/billing/token", onBillingToken);
+    if (!isStandalone) {
+      mqttSync.data.subscribePathFlat("/billing/token", onBillingToken);
+    }
 
     publishDetails();
     setInterval(
@@ -237,12 +262,21 @@ async function boot() {
     await publishStatus("ready").catch((error) => log.warn(error.message));
 
     if (config.autoStart) {
-      log.info("autoStart: starting");
-      enqueue(() => runCommand("start"));
+      if (isStandalone) {
+        log.info("autoStart: starting");
+        enqueue(() => runCommand("start"));
+      } else {
+        resumeWhenEntitled = true;
+        if (hasBillingEntitlement()) {
+          restoreForBilling();
+        } else {
+          await publishStatus("waiting for a valid Transitive billing token");
+        }
+      }
     }
 
     mqttSync.data.update("/device/lastBootAt", Date.now());
-    log.info(`reductstore capability running (config: ${CONFIG_PATH})`);
+    log.info("reductstore capability running");
   });
 }
 

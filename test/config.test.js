@@ -30,53 +30,36 @@ test("deepMerge merges managed nested configuration without dropping siblings", 
   assert.equal(merged.store.bucket.name, "robot-data");
 });
 
-test("loadConfig reads this capability's section from the shared transitive config", () => {
+test("loadConfig reads the capability's private configuration file", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
   const file = path.join(dir, "config.json");
-  const key = "@reductstore/reductstore";
   fs.writeFileSync(
     file,
-    JSON.stringify({
-      global: { ignored: true },
-      "@transitive-robotics/webrtc-video": { bridge: { enabled: true } },
-      [key]: { bridge: { enabled: true, variant: "iot" } },
-    }),
+    JSON.stringify({ bridge: { enabled: true, variant: "iot" } }),
   );
 
-  const loaded = loadConfig(file, key);
+  const loaded = loadConfig(file);
   assert.equal(loaded.bridge.enabled, true);
   assert.equal(loaded.bridge.variant, "iot");
   assert.equal(loaded.store.httpPort, defaults().store.httpPort);
 });
 
-test("loadConfig falls back to defaults when the capability has no section", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
-  const file = path.join(dir, "config.json");
-  fs.writeFileSync(file, JSON.stringify({ "@other/cap": { bridge: {} } }));
-  assert.deepEqual(loadConfig(file, "@reductstore/reductstore"), defaults());
-});
-
-test("loadConfig falls back to defaults on a corrupt file", () => {
+test("loadConfig falls back to defaults on a corrupt private file", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
   const file = path.join(dir, "config.json");
   fs.writeFileSync(file, "{ not json");
   assert.deepEqual(loadConfig(file), defaults());
 });
 
-test("saveConfig writes our section and preserves other keys in the shared file", () => {
+test("saveConfig atomically writes a private configuration file", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
   const file = path.join(dir, "config.json");
-  const key = "@reductstore/reductstore";
-  fs.writeFileSync(
-    file,
-    JSON.stringify({ "@transitive-robotics/webrtc-video": { keep: true } }),
-  );
 
-  saveConfig(defaults(), { store: { httpPort: 9000 } }, file, key);
+  saveConfig(defaults(), { store: { httpPort: 9000 } }, file);
 
   const raw = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(raw["@transitive-robotics/webrtc-video"].keep, true);
-  assert.equal(raw[key].store.httpPort, 9000);
-  assert.equal(loadConfig(file, key).store.httpPort, 9000);
-  assert.equal(loadConfig(file, key).store.bucket.name, "robot-data");
+  assert.equal(raw.store.httpPort, 9000);
+  assert.equal(raw["@reductstore-tr/reductstore"], undefined);
+  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  assert.equal(loadConfig(file).store.bucket.name, "robot-data");
 });

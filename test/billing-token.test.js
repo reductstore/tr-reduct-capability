@@ -1,22 +1,54 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { Buffer } = require("node:buffer");
 
-const { expiryFromToken } = require("../robot/lib/billing-token");
+const { generateKeyPairSync } = require("node:crypto");
+const jwt = require("jsonwebtoken");
 
-function token(claims) {
-  return `header.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.signature`;
+const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+  modulusLength: 2048,
+});
+const context = {
+  deviceId: "robot-1",
+  userId: "organization-1",
+  capability: "@reductstore-tr/reductstore",
+  now: 1_800_000_000_000,
+};
+
+function signedToken(claims, key = privateKey) {
+  return jwt.sign(claims, key, {
+    algorithm: "RS256",
+    noTimestamp: true,
+  });
 }
 
-test("reads the billing validity deadline without persisting the token", () => {
-  assert.equal(
-    expiryFromToken(token({ valid: { until: 1_800_000_000_000 } })),
-    1_800_000_000_000,
+const { verifyBillingToken } = require("../robot/lib/billing-token");
+
+test("verifies a signed billing token for the current robot and capability", () => {
+  const expiresAt = verifyBillingToken(
+    signedToken({
+      valid: { from: context.now - 1_000, until: context.now + 60_000 },
+      deviceId: context.deviceId,
+      userId: context.userId,
+      capability: context.capability,
+    }),
+    { ...context, publicKey },
   );
+
+  assert.equal(expiresAt, context.now + 60_000);
 });
 
-test("rejects malformed or incomplete billing token claims", () => {
-  assert.equal(expiryFromToken("not-a-token"), null);
-  assert.equal(expiryFromToken(token({})), null);
-  assert.equal(expiryFromToken(token({ valid: { until: "tomorrow" } })), null);
+test("rejects a billing token for another capability", () => {
+  assert.throws(
+    () =>
+      verifyBillingToken(
+        signedToken({
+          valid: { from: context.now - 1_000, until: context.now + 60_000 },
+          deviceId: context.deviceId,
+          userId: context.userId,
+          capability: "@other/capability",
+        }),
+        { ...context, publicKey },
+      ),
+    /capability/i,
+  );
 });
