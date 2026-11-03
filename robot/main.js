@@ -54,9 +54,15 @@ const billingGate = isStandalone
         }
       },
       onDenied: (reason) => {
-        log.info(`Transitive billing token ${reason}, exiting`);
-        billingGate.dispose();
-        process.exit(0);
+        log.info(`Transitive billing token ${reason}; stopping ReductStore`);
+        enqueue(async () => {
+          lastBillingToken = null;
+          deletePersistedToken();
+          await bridge.stop(config.bridge).catch(() => {});
+          await store.stop(config.store).catch(() => {});
+          billingGate.dispose();
+          process.exit(0);
+        });
       },
     });
 
