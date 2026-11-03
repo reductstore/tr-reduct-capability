@@ -11,6 +11,8 @@ const STATE_DIR = process.env.STATE_DIR || path.join(CAPABILITY_HOME, "state");
 const CONFIG_PATH =
   process.env.CONFIG_PATH || path.join(CAPABILITY_HOME, "config.json");
 const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
+const BILLING_TOKEN_PATH =
+  process.env.BILLING_TOKEN_PATH || path.join(STATE_DIR, "billing-token");
 
 function defaults() {
   return {
@@ -86,6 +88,7 @@ module.exports = {
   STATE_DIR,
   CONFIG_PATH,
   BRIDGE_TOML_PATH,
+  BILLING_TOKEN_PATH,
   defaults,
   deepMerge,
   loadConfig,

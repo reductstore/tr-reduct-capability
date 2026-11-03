@@ -9,7 +9,12 @@ const store = require("./lib/store");
 const bridge = require("./lib/bridge");
 const { loadConfig, saveConfig } = require("./lib/config");
 const { createBillingGate } = require("./lib/billing-gate");
-const { verifyBillingToken } = require("./lib/billing-token");
+const {
+  verifyBillingToken,
+  persistToken,
+  loadPersistedToken,
+  deletePersistedToken,
+} = require("./lib/billing-token");
 
 const log = getLogger("reductstore-robot");
 log.setLevel(process.env.LOG_LEVEL || "info");
@@ -21,39 +26,17 @@ let mqttSync;
 let config = loadConfig();
 let lastError = null;
 let lastRequestId = null;
-let resumeWhenEntitled = false;
-let chain = Promise.resolve();
 let lastBillingToken = null;
+let chain = Promise.resolve();
 
 function enqueue(fn) {
   chain = chain.then(fn).catch((error) => log.warn(error.message));
   return chain;
 }
 
-function billingStatus() {
-  if (isStandalone) return { entitled: true, expiresAt: null };
-  return billingGate.status();
-}
-
 function hasBillingEntitlement() {
-  return billingStatus().entitled;
-}
-
-async function suspendForBilling(reason) {
-  const [storeStatus, bridgeStatus] = await Promise.all([
-    store.status(config.store),
-    bridge.status(config.bridge),
-  ]);
-  resumeWhenEntitled =
-    config.autoStart && (storeStatus.running || bridgeStatus.running);
-  await runCommand("stop");
-  await publishStatus(`billing entitlement revoked: ${reason}`);
-}
-
-function restoreForBilling() {
-  if (!resumeWhenEntitled) return;
-  resumeWhenEntitled = false;
-  enqueue(() => runCommand("start"));
+  if (isStandalone) return true;
+  return billingGate.status().entitled;
 }
 
 const billingGate = isStandalone
@@ -65,8 +48,16 @@ const billingGate = isStandalone
           userId: process.env.TR_USERID,
           capability: process.env.npm_package_name,
         }),
-      onEntitled: restoreForBilling,
-      onDenied: (reason) => enqueue(() => suspendForBilling(reason)),
+      onEntitled: () => {
+        if (mqttSync && config.autoStart) {
+          enqueue(() => runCommand("start"));
+        }
+      },
+      onDenied: (reason) => {
+        log.info(`Transitive billing token ${reason}, exiting`);
+        billingGate.dispose();
+        process.exit(0);
+      },
     });
 
 function deriveState(storeStatus, bridgeStatus, error) {
@@ -104,7 +95,9 @@ async function publishStatus(message) {
     lastError ||
     storeStatus.error ||
     (config.bridge.enabled && bridgeStatus.error);
-  const billing = billingStatus();
+  const billing = isStandalone
+    ? { entitled: true, expiresAt: null }
+    : billingGate.status();
 
   const data = mqttSync.data;
   data.update(
@@ -196,7 +189,6 @@ function onConfig(value, key) {
     return;
   }
   config = saveConfig(config, patch);
-  if (!config.autoStart) resumeWhenEntitled = false;
   log.info("config updated");
   publishDetails();
   enqueue(() => publishStatus("config saved"));
@@ -206,8 +198,10 @@ function onBillingToken(token) {
   const result = billingGate.update(token);
   if (result.valid) {
     lastBillingToken = token;
+    persistToken(token);
   } else {
     lastBillingToken = null;
+    deletePersistedToken();
     log.warn(`invalid Transitive billing token: ${result.reason}`);
   }
   publishStatus().catch((error) => log.warn(error.message));
@@ -257,6 +251,19 @@ async function boot() {
     mqttSync.data.subscribePathFlat("/config", onConfig);
     if (!isStandalone) {
       mqttSync.data.subscribePathFlat("/billing/token", onBillingToken);
+
+      const persisted = loadPersistedToken();
+      if (persisted) {
+        const result = billingGate.update(persisted);
+        if (result.valid) {
+          lastBillingToken = persisted;
+        } else {
+          deletePersistedToken();
+          log.info(
+            "persisted billing token is no longer valid, waiting for update",
+          );
+        }
+      }
     }
 
     publishDetails();
@@ -267,16 +274,13 @@ async function boot() {
     await publishStatus("ready").catch((error) => log.warn(error.message));
 
     if (config.autoStart) {
-      if (isStandalone) {
+      if (isStandalone || hasBillingEntitlement()) {
         log.info("autoStart: starting");
         enqueue(() => runCommand("start"));
       } else {
-        resumeWhenEntitled = true;
-        if (hasBillingEntitlement()) {
-          restoreForBilling();
-        } else {
-          await publishStatus("waiting for a valid Transitive billing token");
-        }
+        await publishStatus(
+          "waiting for a valid Transitive billing token",
+        ).catch(() => {});
       }
     }
 

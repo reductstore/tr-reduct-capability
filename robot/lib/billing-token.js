@@ -2,6 +2,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const jwt = require("jsonwebtoken");
 
+const { BILLING_TOKEN_PATH } = require("./config");
+
 const CLOCK_SKEW_MS = 2 * 60 * 1000;
 const BILLING_PUBLIC_KEY = fs.readFileSync(
   path.join(__dirname, "..", "keys", "transitive-billing.pub"),
@@ -46,4 +48,35 @@ function verifyBillingToken(
   return until;
 }
 
-module.exports = { BILLING_PUBLIC_KEY, verifyBillingToken };
+function persistToken(token, filePath = BILLING_TOKEN_PATH) {
+  const directory = path.dirname(filePath);
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const tmp = `${filePath}.tmp`;
+  fs.writeFileSync(tmp, token, { encoding: "utf8", mode: 0o600 });
+  fs.renameSync(tmp, filePath);
+  fs.chmodSync(filePath, 0o600);
+}
+
+function loadPersistedToken(filePath = BILLING_TOKEN_PATH) {
+  try {
+    return fs.readFileSync(filePath, "utf8").trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function deletePersistedToken(filePath = BILLING_TOKEN_PATH) {
+  try {
+    fs.rmSync(filePath, { force: true });
+  } catch {
+    // rmSync with force:true only throws on genuine OS errors; silently ignore
+  }
+}
+
+module.exports = {
+  BILLING_PUBLIC_KEY,
+  verifyBillingToken,
+  persistToken,
+  loadPersistedToken,
+  deletePersistedToken,
+};
