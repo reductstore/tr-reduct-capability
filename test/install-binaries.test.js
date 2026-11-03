@@ -71,7 +71,7 @@ test("exposes the complete Linux x64 native binary set from the manifest", () =>
     entry: "reductstore-pro",
     archive: "zip",
     integrity: "transport",
-    url: "https://account.reduct.store/v1/transitive/reductstore-pro/linux/x64",
+    url: "https://api.reduct.store/v1/transitive/reductstore-pro/linux/x64",
   });
   assert.throws(() => installer.assetsFor("linux", "arm64"), /Unsupported/);
 });

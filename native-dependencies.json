@@ -5,7 +5,7 @@
       "entry": "reductstore-pro",
       "archive": "zip",
       "integrity": "transport",
-      "url": "https://account.reduct.store/v1/transitive/reductstore-pro/linux/x64"
+      "url": "https://api.reduct.store/v1/transitive/reductstore-pro/linux/x64"
     },
     {
       "bin": "reduct-bridge-ros2-jazzy",
