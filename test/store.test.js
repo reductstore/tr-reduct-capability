@@ -17,12 +17,13 @@ test("buildEnvironment configures native ReductStore from its config section", (
   assert.equal(env.RS_PORT, "8383");
 });
 
-test("buildEnvironment does not propagate billing tokens to ReductStore", () => {
+test("buildEnvironment passes the current billing token to ReductStore", () => {
+  const token = "transitive-billing-token";
   const env = store.buildEnvironment(defaults().store, {
-    billingToken: "transitive-billing-token",
+    billingToken: token,
   });
 
-  assert.equal(env.RS_TRANSITIVE_BILLING_TOKEN, undefined);
+  assert.equal(env.RS_TRANSITIVE_BILLING_TOKEN, token);
 });
 
 test("buildEnvironment omits disabled quotas and incomplete replications", () => {

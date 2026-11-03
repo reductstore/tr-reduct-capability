@@ -51,8 +51,4 @@ The Store receives its server, bucket, token, and replication settings as enviro
 
 ## Transitive billing
 
-The robot subscribes to Transitive's `/billing/token` data path. It verifies the token's RS256 signature, robot, organization, capability, and validity window before starting ReductStore or ReductBridge. A refreshed valid token updates the entitlement deadline without restarting either process. An invalid or expired token stops both processes. The token is never stored or passed to ReductStore Pro.
-
-## Portal
-
-The device portal shows Store and Bridge process status, errors, logs, and billing entitlement state. It controls the native processes with Start / Stop / Restart and edits this robot's private capability configuration.
+The robot subscribes to Transitive's `/billing/token` data path. It verifies the token's RS256 signature, robot, organization, capability, and validity window before starting ReductStore or ReductBridge. The current verified token is passed to ReductStore Pro as `RS_TRANSITIVE_BILLING_TOKEN` on every (re)start so Pro can validate entitlement at launch time. A refreshed valid token updates the capability's expiry timer and the stored token value without restarting a running Store. An invalid or expired token stops both processes and clears the token. When a valid replacement arrives the capability restarts them if `autoStart` is enabled.

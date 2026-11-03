@@ -23,6 +23,7 @@ let lastError = null;
 let lastRequestId = null;
 let resumeWhenEntitled = false;
 let chain = Promise.resolve();
+let lastBillingToken = null;
 
 function enqueue(fn) {
   chain = chain.then(fn).catch((error) => log.warn(error.message));
@@ -132,7 +133,7 @@ async function bringUp(message) {
   const managed = (await store.getReplications(config.store).catch(() => []))
     .filter((task) => task.is_provisioned)
     .map((task) => task.name);
-  await store.start(config.store);
+  await store.start(config.store, { billingToken: lastBillingToken });
   const ready = await store.waitUntilAlive(config.store);
   if (!ready) throw new Error("ReductStore did not become ready in time");
   await store.pruneReplications(config.store, managed);
@@ -203,8 +204,12 @@ function onConfig(value, key) {
 
 function onBillingToken(token) {
   const result = billingGate.update(token);
-  if (!result.valid)
+  if (result.valid) {
+    lastBillingToken = token;
+  } else {
+    lastBillingToken = null;
     log.warn(`invalid Transitive billing token: ${result.reason}`);
+  }
   publishStatus().catch((error) => log.warn(error.message));
 }
 
