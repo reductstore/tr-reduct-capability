@@ -73,7 +73,18 @@ test("exposes the complete Linux x64 native binary set from the manifest", () =>
     integrity: "transport",
     url: "https://api.reduct.store/v1/transitive/reductstore-pro/linux/x64",
   });
-  assert.throws(() => installer.assetsFor("linux", "arm64"), /Unsupported/);
+});
+
+test("exposes ReductStore Pro for Linux arm64", () => {
+  assert.deepEqual(installer.assetsFor("linux", "arm64"), [
+    {
+      bin: "reductstore",
+      entry: "reductstore-pro",
+      archive: "zip",
+      integrity: "transport",
+      url: "https://api.reduct.store/v1/transitive/reductstore-pro/linux/arm64",
+    },
+  ]);
 });
 
 test("downloads the detected architecture, verifies checksums, and caches", async () => {
