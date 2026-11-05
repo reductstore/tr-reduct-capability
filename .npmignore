@@ -30,4 +30,5 @@ client.key
 # Never publish deps or lockfiles / sourcemaps
 **/node_modules
 **/package-lock.json
+robot/bin/
 dist/*.js.map

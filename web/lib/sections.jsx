@@ -1,11 +1,12 @@
 import React from "react";
 import { Field, SectionHead } from "./ui";
 import {
-  BRIDGE_IMAGES,
-  BRIDGE_TEMPLATES,
-  templateForImage,
-  isTemplateToml,
-} from "./bridge-templates";
+  VARIANTS,
+  PRESETS,
+  presetForVariant,
+  renderPreset,
+  isPresetToml,
+} from "./presets";
 import { row, input, btn, hint, sectionStyle } from "./styles";
 
 export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
@@ -37,13 +38,6 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
         Incoming records are stored here in buckets on the robot, configured
         through provisioning env vars.
       </SectionHead>
-      <Field label="Image">
-        <input
-          style={input}
-          value={store.image}
-          onChange={(e) => setStore("image", e.target.value)}
-        />
-      </Field>
       <Field label="HTTP port">
         <input
           style={input}
@@ -94,13 +88,7 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
         </Field>
       )}
 
-      <div
-        style={{
-          margin: "10px 0 4px",
-          fontSize: "13px",
-          fontWeight: 600,
-        }}
-      >
+      <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
         Extra env vars
       </div>
       <p style={hint}>
@@ -332,34 +320,20 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
       env.filter((_, j) => j !== i),
     );
 
-  const mounts = bridge.mounts || [];
-  const setMount = (i, v) =>
-    setBridge(
-      "mounts",
-      mounts.map((m, j) => (j === i ? v : m)),
-    );
-  const addMount = () => setBridge("mounts", [...mounts, ""]);
-  const removeMount = (i) =>
-    setBridge(
-      "mounts",
-      mounts.filter((_, j) => j !== i),
-    );
+  const isRos2 = /^ros2/.test(bridge.variant || "");
 
-  const imageKnown = BRIDGE_IMAGES.some((im) => im.value === bridge.image);
-  const isRos2 = /ros2/i.test(bridge.image || "");
-
-  // Swap the template too when the TOML is still an unedited template.
-  const changeImage = (image) => {
-    const tmpl = templateForImage(image);
-    const next = { ...bridge, image };
-    if (tmpl && isTemplateToml(bridge.toml, cfg.store, bridge.image))
-      next.toml = tmpl.build(cfg.store, image);
-    setCfg({ ...cfg, bridge: next });
+  // Switching variant also swaps the preset, and re-renders the TOML only when
+  // the operator has not hand-edited it.
+  const changeVariant = (variant) => {
+    const preset = presetForVariant(variant);
+    const unedited = isPresetToml(bridge.toml, cfg.store, bridge.variant);
+    setCfg({
+      ...cfg,
+      bridge: { ...bridge, variant, preset, toml: unedited ? "" : bridge.toml },
+    });
   };
-  const loadTemplate = (label) => {
-    const tmpl = BRIDGE_TEMPLATES.find((t) => t.label === label);
-    if (tmpl) setBridge("toml", tmpl.build(cfg.store, bridge.image));
-  };
+  const loadPreset = () =>
+    setBridge("toml", renderPreset(bridge.preset, cfg.store, bridge.variant));
 
   return (
     <div style={sectionStyle(dirty)}>
@@ -369,8 +343,8 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
         dirty={dirty}
         onDiscard={onDiscard}
       >
-        Writes incoming data into the local ReductStore. Configured with the
-        TOML below.
+        Writes incoming data into the local ReductStore. Pick a variant and
+        preset, or paste a full config.toml below.
       </SectionHead>
       <Field label="Enabled">
         <input
@@ -379,31 +353,31 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
           onChange={(e) => setBridge("enabled", e.target.checked)}
         />
       </Field>
-      <Field label="Image family">
+      <Field label="Variant">
         <select
           style={input}
-          value={imageKnown ? bridge.image : ""}
-          onChange={(e) => changeImage(e.target.value)}
+          value={bridge.variant}
+          onChange={(e) => changeVariant(e.target.value)}
         >
-          {!imageKnown && (
-            <option value="" disabled>
-              Custom (see tag below)
-            </option>
-          )}
-          {BRIDGE_IMAGES.map((im) => (
-            <option key={im.value} value={im.value}>
-              {im.label}
+          {VARIANTS.map((v) => (
+            <option key={v.value} value={v.value}>
+              {v.label}
             </option>
           ))}
         </select>
       </Field>
-      <Field label="Image tag">
-        <input
+      <Field label="Preset">
+        <select
           style={input}
-          placeholder="reduct/bridge:tag"
-          value={bridge.image}
-          onChange={(e) => setBridge("image", e.target.value)}
-        />
+          value={bridge.preset}
+          onChange={(e) => setBridge("preset", e.target.value)}
+        >
+          {PRESETS.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
       </Field>
       {isRos2 && (
         <Field label="ROS_DOMAIN_ID">
@@ -420,49 +394,11 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
           />
         </Field>
       )}
-      <div
-        style={{
-          margin: "10px 0 4px",
-          fontSize: "13px",
-          fontWeight: 600,
-        }}
-      >
-        Extra mounts (host dirs)
-      </div>
-      <p style={hint}>
-        Optional volume mounts. Host directories mounted read only into the
-        container at the same path, for example a ROS 2 workspace with custom
-        message schemas the TOML references.
-      </p>
-      {mounts.map((m, i) => (
-        <div key={i} style={row}>
-          <input
-            style={input}
-            placeholder="/home/user/ros2_ws/install"
-            value={m || ""}
-            onChange={(ev) => setMount(i, ev.target.value)}
-          />
-          <button style={btn} onClick={() => removeMount(i)}>
-            ×
-          </button>
-        </div>
-      ))}
-      <button style={btn} onClick={addMount}>
-        Add mount
-      </button>
 
-      <div
-        style={{
-          margin: "10px 0 4px",
-          fontSize: "13px",
-          fontWeight: 600,
-        }}
-      >
+      <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
         Extra env vars
       </div>
-      <p style={hint}>
-        Optional. Extra environment variables for the bridge container.
-      </p>
+      <p style={hint}>Optional environment variables for the bridge process.</p>
       {env.map((e, i) => (
         <div key={i} style={row}>
           <input
@@ -497,21 +433,14 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
           }}
         >
           <label style={{ fontSize: "13px" }}>config.toml</label>
-          <select
-            style={{ fontSize: "12px", padding: "2px 4px" }}
-            value=""
-            onChange={(e) => {
-              if (e.target.value) loadTemplate(e.target.value);
-            }}
-          >
-            <option value="">Load template…</option>
-            {BRIDGE_TEMPLATES.map((t) => (
-              <option key={t.label} value={t.label}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <button style={btn} onClick={loadPreset}>
+            Load {bridge.preset} preset into editor
+          </button>
         </div>
+        <p style={{ ...hint, margin: "0 0 6px" }}>
+          Leave empty to run the selected preset. Enter a full TOML here to
+          override it for this robot.
+        </p>
         <textarea
           style={{
             width: "100%",
@@ -519,6 +448,7 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
             fontFamily: "monospace",
             fontSize: "12px",
           }}
+          placeholder={`# empty → uses the ${bridge.preset} preset`}
           value={bridge.toml}
           onChange={(e) => setBridge("toml", e.target.value)}
         />

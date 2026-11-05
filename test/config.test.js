@@ -11,40 +11,55 @@ const {
   saveConfig,
 } = require("../robot/lib/config");
 
-test("defaults have store provisioning + a bridge TOML", () => {
-  const c = defaults();
-  assert.equal(c.store.apiToken, "transitive-local-token");
-  assert.equal(c.store.bucket.name, "robot-data");
-  assert.equal(c.store.bucket.quotaType, "FIFO"); // FIFO 1GB by default
-  assert.equal(c.store.bucket.quotaSize, "1GB");
-  assert.ok(c.bridge.toml.includes("[remotes.reduct.local]"));
-  assert.ok(c.bridge.toml.includes("prefix ="));
-  assert.equal(c.bridge.enabled, false); // bridge off until the operator enables it
-  assert.equal(c.autoStart, true);
+test("defaults define native store settings and a ROS 2 Jazzy bridge preset", () => {
+  const config = defaults();
+  assert.equal(config.store.apiToken, "transitive-local-token");
+  assert.equal(config.store.bucket.name, "robot-data");
+  assert.equal(config.store.bucket.quotaType, "FIFO");
+  assert.equal(config.store.bucket.quotaSize, "1GB");
+  assert.equal(config.bridge.variant, "ros2-jazzy");
+  assert.equal(config.bridge.preset, "ros2");
+  assert.equal(config.bridge.toml, "");
+  assert.equal(config.bridge.enabled, false);
+  assert.equal(config.autoStart, true);
 });
 
-test("deepMerge merges nested objects without dropping siblings", () => {
+test("deepMerge merges managed nested configuration without dropping siblings", () => {
   const merged = deepMerge(defaults(), { store: { apiToken: "secret" } });
   assert.equal(merged.store.apiToken, "secret");
-  assert.equal(merged.store.bucket.name, "robot-data"); // sibling preserved
+  assert.equal(merged.store.bucket.name, "robot-data");
 });
 
-test("saveConfig persists a merged config and loadConfig reads it back", () => {
+test("loadConfig reads the capability's private configuration file", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
   const file = path.join(dir, "config.json");
-  const base = defaults();
-
-  const saved = saveConfig(base, { bridge: { rosDomainId: 7 } }, file);
-  assert.equal(saved.bridge.rosDomainId, 7);
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ bridge: { enabled: true, variant: "iot" } }),
+  );
 
   const loaded = loadConfig(file);
-  assert.equal(loaded.bridge.rosDomainId, 7);
-  assert.equal(loaded.store.image, base.store.image);
+  assert.equal(loaded.bridge.enabled, true);
+  assert.equal(loaded.bridge.variant, "iot");
+  assert.equal(loaded.store.httpPort, defaults().store.httpPort);
 });
 
-test("loadConfig falls back to defaults on a corrupt file", () => {
+test("loadConfig falls back to defaults on a corrupt private file", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
   const file = path.join(dir, "config.json");
   fs.writeFileSync(file, "{ not json");
   assert.deepEqual(loadConfig(file), defaults());
+});
+
+test("saveConfig atomically writes a private configuration file", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-cfg-"));
+  const file = path.join(dir, "config.json");
+
+  saveConfig(defaults(), { store: { httpPort: 9000 } }, file);
+
+  const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(raw.store.httpPort, 9000);
+  assert.equal(raw["@reductstore-tr/reductstore"], undefined);
+  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  assert.equal(loadConfig(file).store.bucket.name, "robot-data");
 });

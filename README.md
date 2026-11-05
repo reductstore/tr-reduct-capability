@@ -1,38 +1,23 @@
 # ReductStore
 
-Records your robot's data on the robot itself and syncs it to a central
-[ReductStore](https://www.reduct.store/). It runs two Docker containers, managed
-from the portal:
+Save robot data locally with [ReductStore](https://www.reduct.store/). Configure a store on each robot, record data into it, replicate selected data to another store, and query it through the standard ReductStore API.
 
-- **ReductStore**: a time-series object store that keeps data on the robot with
-  per-bucket size limits.
-- **ReductBridge**: ingests data from the robot (ROS 2, ROS 1, or IoT sources
-  such as MQTT, HTTP, and shell commands) into the store.
+## What it does
 
-## Features
+- Runs a local ReductStore Pro instance with a configurable bucket, quota, data directory, HTTP port, and API token.
+- Optionally runs ReductBridge to record ROS, MQTT, HTTP, shell-command, and IoT data.
+- Replicates new records to a remote or cloud ReductStore when the robot has connectivity.
+- Shows store, Bridge, and replication status in the Transitive portal.
 
-- Start, stop, and restart both containers from the portal.
-- Configure the store: image, HTTP port, API token, and bucket (name, quota
-  type, size).
-- Replicate data to a central ReductStore.
-- Pick a data source and edit its bridge configuration in the portal.
-- Fleet view: per-organization running / stopped / error counts, and how many
-  stores and bridges are up.
+Configure the store, Bridge, and replication tasks from the capability's device page in the Transitive portal. Use the configured HTTP endpoint and API token to query stored data with the [ReductStore API and SDKs](https://www.reduct.store/docs/api).
 
-## Prerequisites
+## Platform support
 
-- Docker installed on the robot.
-- The data source you want to record, reachable from the robot: a running ROS
-  graph, an MQTT broker, or an HTTP endpoint. ROS ingestion uses host
-  networking.
+Native binaries download automatically when the capability is installed.
 
-## Configuration
+| Component       | Linux x64 | Linux arm64       |
+| --------------- | --------- | ----------------- |
+| ReductStore Pro | Supported | Supported         |
+| ReductBridge    | Supported | Not yet available |
 
-Everything is configured from the device view in the portal.
-
-**Store**: set the image, HTTP port, API token, and bucket (name, quota type,
-size), and define replication tasks to sync data to a central ReductStore.
-
-**Bridge**: disabled by default. Pick an image for your data source and edit
-its TOML configuration. See the
-[ReductBridge docs](https://www.reduct.store/docs/reduct-bridge).
+ReductBridge's upstream release currently publishes only Linux x64 binaries. On Linux arm64, leave the Bridge disabled and use the local ReductStore directly until an arm64 Bridge release is available.

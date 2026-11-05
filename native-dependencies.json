@@ -1,0 +1,44 @@
+{
+  "linux-x64": [
+    {
+      "bin": "reductstore",
+      "entry": "reductstore-pro",
+      "archive": "zip",
+      "integrity": "transport",
+      "url": "https://api.reduct.store/v1/transitive/reductstore-pro/linux/x64"
+    },
+    {
+      "bin": "reduct-bridge-ros2-jazzy",
+      "entry": "reduct-bridge",
+      "integrity": "transport",
+      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.0/bridge-ros2-jazzy.x86_64-unknown-linux-gnu.tar.gz"
+    },
+    {
+      "bin": "reduct-bridge-ros2-humble",
+      "entry": "reduct-bridge",
+      "integrity": "transport",
+      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.0/bridge-ros2-humble.x86_64-unknown-linux-gnu.tar.gz"
+    },
+    {
+      "bin": "reduct-bridge-ros1",
+      "entry": "reduct-bridge",
+      "integrity": "transport",
+      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.0/bridge-ros1.x86_64-unknown-linux-gnu.tar.gz"
+    },
+    {
+      "bin": "reduct-bridge-iot",
+      "entry": "reduct-bridge",
+      "integrity": "transport",
+      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.0/bridge-iot.x86_64-unknown-linux-gnu.tar.gz"
+    }
+  ],
+  "linux-arm64": [
+    {
+      "bin": "reductstore",
+      "entry": "reductstore-pro",
+      "archive": "zip",
+      "integrity": "transport",
+      "url": "https://api.reduct.store/v1/transitive/reductstore-pro/linux/arm64"
+    }
+  ]
+}
