@@ -87,7 +87,7 @@ test("exposes ReductStore Pro for Linux arm64", () => {
   ]);
 });
 
-test("downloads the detected architecture, verifies checksums, and caches", async () => {
+test("downloads the detected architecture, extracts binaries, and caches", async () => {
   const release = fs.mkdtempSync(path.join(os.tmpdir(), "tr-native-release-"));
   const destination = fs.mkdtempSync(path.join(os.tmpdir(), "tr-native-bin-"));
   const server = await serve(release);
