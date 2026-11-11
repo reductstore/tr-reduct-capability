@@ -5,7 +5,7 @@ export const VARIANTS = [
   { value: "ros2-jazzy", label: "ROS 2 (Jazzy)" },
   { value: "ros2-humble", label: "ROS 2 (Humble)" },
   { value: "ros1", label: "ROS 1" },
-  { value: "iot", label: "IoT: MQTT / HTTP / Shell" },
+  { value: "iot", label: "IoT" },
 ];
 
 const quoted = (value) => JSON.stringify(String(value));

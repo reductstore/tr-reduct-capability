@@ -22,18 +22,14 @@ test("selects native executables for every supported bridge variant", () => {
 
 test("buildEnvironment keeps ROS settings out of IoT processes", () => {
   const ros = bridge.buildEnvironment({
-    ...defaults().bridge,
     variant: "ros2-jazzy",
-    rosDomainId: 5,
+    env: [{ key: "ROS_DOMAIN_ID", value: "5" }],
   });
   assert.equal(ros.ROS_DOMAIN_ID, "5");
   assert.equal(ros.HOME, "/tmp");
   assert.equal(ros.FASTDDS_BUILTIN_TRANSPORTS, "UDPv4");
 
-  const iot = bridge.buildEnvironment({
-    ...defaults().bridge,
-    variant: "iot",
-  });
+  const iot = bridge.buildEnvironment({ variant: "iot", env: [] });
   assert.equal(iot.ROS_DOMAIN_ID, undefined);
   assert.equal(iot.HOME, undefined);
   assert.equal(iot.FASTDDS_BUILTIN_TRANSPORTS, undefined);

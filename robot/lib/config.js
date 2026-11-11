@@ -33,8 +33,7 @@ function defaults() {
       enabled: false,
       variant: "ros2-jazzy",
       preset: "ros2",
-      rosDomainId: 0,
-      env: [],
+      env: [{ key: "ROS_DOMAIN_ID", value: "0" }],
       toml: "",
     },
   };

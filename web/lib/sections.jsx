@@ -1,5 +1,5 @@
 import React from "react";
-import { Field, SectionHead } from "./ui";
+import { Field, SectionHead, GrowTextarea } from "./ui";
 import {
   VARIANTS,
   PRESETS,
@@ -7,7 +7,7 @@ import {
   renderPreset,
   isPresetToml,
 } from "./presets";
-import { row, input, btn, hint, sectionStyle } from "./styles";
+import { row, input, select, btn, hint, sectionStyle } from "./styles";
 
 export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
   const store = cfg.store;
@@ -30,14 +30,11 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
   return (
     <div style={sectionStyle(dirty)}>
       <SectionHead
-        title="ReductStore, the database on this robot"
+        title="ReductStore"
         href="https://www.reduct.store/docs/configuration/provisioning"
         dirty={dirty}
         onDiscard={onDiscard}
-      >
-        Incoming records are stored here in buckets on the robot, configured
-        through provisioning env vars.
-      </SectionHead>
+      />
       <Field label="HTTP port">
         <input
           style={input}
@@ -67,8 +64,9 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
           onChange={(e) => setBucket("name", e.target.value)}
         />
       </Field>
-      <Field label="Quota type">
+      <Field label="Quota">
         <select
+          style={select}
           value={store.bucket.quotaType}
           onChange={(e) => setBucket("quotaType", e.target.value)}
         >
@@ -76,25 +74,19 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
           <option>FIFO</option>
           <option>HARD</option>
         </select>
-      </Field>
-      {store.bucket.quotaType !== "NONE" && (
-        <Field label="Quota size">
+        {store.bucket.quotaType !== "NONE" && (
           <input
             style={input}
-            placeholder="e.g. 1GB"
+            placeholder="1GB"
             value={store.bucket.quotaSize}
             onChange={(e) => setBucket("quotaSize", e.target.value)}
           />
-        </Field>
-      )}
+        )}
+      </Field>
 
       <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
-        Extra env vars
+        Extra environment variables (optional)
       </div>
-      <p style={hint}>
-        Any additional ReductStore settings, applied on top of the fields above.
-        If one repeats a setting from above, the value here is used.
-      </p>
       {env.map((e, i) => (
         <div key={i} style={row}>
           <input
@@ -152,8 +144,6 @@ export function ReplicationSection({
       },
     ]);
   const removeRep = (i) => setReps(reps.filter((_, j) => j !== i));
-  const repStatus = (name) =>
-    (dev.store?.replications || []).find((t) => t.name === name);
   const orphanReps = (dev.store?.replications || [])
     .map((t) => t.name)
     .filter(
@@ -164,17 +154,11 @@ export function ReplicationSection({
   return (
     <div style={sectionStyle(dirty)}>
       <SectionHead
-        title="Replication, send new data to a remote ReductStore"
+        title="Replication"
         href="https://www.reduct.store/docs/guides/data-replication"
         dirty={dirty}
         onDiscard={onDiscard}
-      >
-        As records are written to a local bucket, they are also sent to a remote
-        or cloud ReductStore. It only adds new records, never changing or
-        deleting existing data. Optionally send only the records that match a
-        "when" filter. Tasks are provisioned on the store, so changes apply on
-        Apply &amp; Restart.
-      </SectionHead>
+      />
       {reps.map((r, i) => (
         <div
           key={i}
@@ -231,7 +215,7 @@ export function ReplicationSection({
           </Field>
           <Field label="Mode">
             <select
-              style={input}
+              style={select}
               value={r.mode || "enabled"}
               onChange={(e) => setRep(i, "mode", e.target.value)}
             >
@@ -244,36 +228,13 @@ export function ReplicationSection({
             <label style={{ fontSize: "13px" }}>
               Filter, "when" (optional)
             </label>
-            <textarea
-              style={{
-                width: "100%",
-                minHeight: "70px",
-                fontFamily: "monospace",
-                fontSize: "12px",
-              }}
-              placeholder='JSON condition, e.g. {"&temperature": {"$gt": 10}}'
+            <GrowTextarea
               value={r.when || ""}
               onChange={(e) => setRep(i, "when", e.target.value)}
+              placeholder='JSON condition, e.g. {"&temperature": {"$gt": 10}}'
+              minRows={2}
             />
-            <p style={{ ...hint, margin: "2px 0 0" }}>
-              Only replicate records matching this condition. Leave empty to
-              replicate everything.
-            </p>
           </div>
-          {repStatus(r.name) && (
-            <p style={hint}>
-              on device:{" "}
-              <b>
-                {repStatus(r.name).is_provisioned
-                  ? "provisioned"
-                  : "unprovisioned"}
-              </b>
-              {" · "}
-              {repStatus(r.name).is_active ? "active" : "inactive"}
-              {" · pending: "}
-              {repStatus(r.name).pending_records}
-            </p>
-          )}
           <button style={btn} onClick={() => removeRep(i)}>
             Remove task
           </button>
@@ -320,32 +281,39 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
       env.filter((_, j) => j !== i),
     );
 
-  const isRos2 = /^ros2/.test(bridge.variant || "");
-
   // Switching variant also swaps the preset, and re-renders the TOML only when
   // the operator has not hand-edited it.
   const changeVariant = (variant) => {
     const preset = presetForVariant(variant);
     const unedited = isPresetToml(bridge.toml, cfg.store, bridge.variant);
+    let env = bridge.env || [];
+    const isRos2 = variant.startsWith("ros2");
+    if (isRos2 && !env.some((e) => e.key === "ROS_DOMAIN_ID")) {
+      env = [...env, { key: "ROS_DOMAIN_ID", value: "0" }];
+    } else if (!isRos2) {
+      env = env.filter((e) => e.key !== "ROS_DOMAIN_ID");
+    }
     setCfg({
       ...cfg,
-      bridge: { ...bridge, variant, preset, toml: unedited ? "" : bridge.toml },
+      bridge: {
+        ...bridge,
+        variant,
+        preset,
+        env,
+        toml: unedited ? "" : bridge.toml,
+      },
     });
   };
-  const loadPreset = () =>
-    setBridge("toml", renderPreset(bridge.preset, cfg.store, bridge.variant));
+  const rendered = renderPreset(bridge.preset, cfg.store, bridge.variant);
 
   return (
     <div style={sectionStyle(dirty)}>
       <SectionHead
-        title="ReductBridge, record data into the store"
+        title="ReductBridge"
         href="https://www.reduct.store/docs/reduct-bridge"
         dirty={dirty}
         onDiscard={onDiscard}
-      >
-        Writes incoming data into the local ReductStore. Pick a variant and
-        preset, or paste a full config.toml below.
-      </SectionHead>
+      />
       <Field label="Enabled">
         <input
           type="checkbox"
@@ -355,7 +323,7 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
       </Field>
       <Field label="Variant">
         <select
-          style={input}
+          style={select}
           value={bridge.variant}
           onChange={(e) => changeVariant(e.target.value)}
         >
@@ -366,44 +334,34 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
           ))}
         </select>
       </Field>
-      <Field label="Preset">
-        <select
-          style={input}
-          value={bridge.preset}
-          onChange={(e) => setBridge("preset", e.target.value)}
-        >
-          {PRESETS.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </Field>
-      {isRos2 && (
-        <Field label="ROS_DOMAIN_ID">
-          <input
-            style={input}
-            type="number"
-            value={bridge.rosDomainId ?? ""}
-            onChange={(e) =>
-              setBridge(
-                "rosDomainId",
-                e.target.value === "" ? "" : Number(e.target.value),
-              )
-            }
-          />
+      {bridge.variant === "iot" && (
+        <Field label="Protocol">
+          <select
+            style={select}
+            value={bridge.preset}
+            onChange={(e) => setBridge("preset", e.target.value)}
+          >
+            {PRESETS.filter((p) =>
+              ["mqtt", "http", "shell"].includes(p.value),
+            ).map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
         </Field>
       )}
 
       <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
-        Extra env vars
+        Extra environment variables (optional)
       </div>
-      <p style={hint}>Optional environment variables for the bridge process.</p>
       {env.map((e, i) => (
         <div key={i} style={row}>
           <input
             style={{ ...input, maxWidth: "220px" }}
-            placeholder="RUST_LOG"
+            placeholder={
+              bridge.variant.startsWith("ros2") ? "ROS_DOMAIN_ID" : "RUST_LOG"
+            }
             value={e.key || ""}
             onChange={(ev) => setEnv(i, "key", ev.target.value)}
           />
@@ -424,33 +382,18 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
       </button>
 
       <div style={{ margin: "6px 0" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "6px",
-          }}
+        <label
+          style={{ fontSize: "13px", display: "block", marginBottom: "6px" }}
         >
-          <label style={{ fontSize: "13px" }}>config.toml</label>
-          <button style={btn} onClick={loadPreset}>
-            Load {bridge.preset} preset into editor
-          </button>
-        </div>
-        <p style={{ ...hint, margin: "0 0 6px" }}>
-          Leave empty to run the selected preset. Enter a full TOML here to
-          override it for this robot.
-        </p>
-        <textarea
-          style={{
-            width: "100%",
-            minHeight: "420px",
-            fontFamily: "monospace",
-            fontSize: "12px",
-          }}
+          config.toml
+        </label>
+        <GrowTextarea
+          value={bridge.toml || rendered}
+          onChange={(e) =>
+            setBridge("toml", e.target.value === rendered ? "" : e.target.value)
+          }
           placeholder={`# empty → uses the ${bridge.preset} preset`}
-          value={bridge.toml}
-          onChange={(e) => setBridge("toml", e.target.value)}
+          minRows={3}
         />
       </div>
     </div>

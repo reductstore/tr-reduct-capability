@@ -6,7 +6,7 @@ import {
   ReplicationSection,
   BridgeSection,
 } from "./lib/sections";
-import { badge, barBtn, barPrimary, divider, btn, hint } from "./lib/styles";
+import { barBtn, barPrimary, divider, btn, hint, linkBtn } from "./lib/styles";
 
 const [, capabilityName] = TR_PKG_NAME.split("/");
 
@@ -140,6 +140,9 @@ const Device = ({ jwt, id, host, ssl }) => {
       ? "running"
       : "stopped"
     : "disabled";
+  const reps = device.store?.replications || [];
+  const repActive = reps.filter((r) => r.is_active).length;
+  const repPending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
 
   const billingValid = device.billing?.state === "valid";
   const error = device.error || device.store?.error || device.bridge?.error;
@@ -159,24 +162,42 @@ const Device = ({ jwt, id, host, ssl }) => {
   return (
     <div>
       <StatusComponent />
-      <h4>{capabilityName}</h4>
+      <h4>Reduct</h4>
 
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          margin: "6px 0",
+          display: "grid",
+          gridTemplateColumns: "auto 1fr",
+          gap: "2px 12px",
+          fontSize: "13px",
+          margin: "8px 0",
+          maxWidth: "340px",
         }}
       >
-        <span style={badge(state)}>{state}</span>
-        <span style={badge(billingValid ? "running" : "error")}>
-          billing: {billingValid ? "valid" : "invalid"}
-        </span>
-        <span style={{ fontSize: "13px", color: "#444" }}>
-          store: <b>{storeText}</b>
-          {" · "}bridge: <b>{bridgeText}</b>
-        </span>
+        {[
+          ["State", state, state === "running" ? "#107c10" : "#666"],
+          [
+            "Billing",
+            billingValid ? "valid" : "invalid",
+            billingValid ? "#107c10" : "#d13438",
+          ],
+          ["Store", storeText, null],
+          ["Bridge", bridgeText, null],
+          ...(reps.length
+            ? [
+                [
+                  "Replication",
+                  `${repActive}/${reps.length} active · ${repPending} pending`,
+                  null,
+                ],
+              ]
+            : []),
+        ].map(([label, value, color]) => (
+          <React.Fragment key={label}>
+            <span style={{ color: "#888" }}>{label}</span>
+            <b style={color ? { color } : undefined}>{value}</b>
+          </React.Fragment>
+        ))}
       </div>
 
       {(error || feedback || device.message) && (
@@ -240,13 +261,13 @@ const Device = ({ jwt, id, host, ssl }) => {
           disabled={!dirty || issues.length > 0}
           onClick={apply}
         >
-          Apply &amp; Restart
+          Apply &amp; restart
         </button>
         <button style={barBtn(dirty)} disabled={!dirty} onClick={discard}>
-          Discard changes
+          Discard
         </button>
         {consoleUrl && (
-          <a href={consoleUrl} target="_blank" rel="noreferrer">
+          <a href={consoleUrl} target="_blank" rel="noreferrer" style={linkBtn}>
             Open ReductStore
           </a>
         )}
@@ -265,10 +286,6 @@ const Device = ({ jwt, id, host, ssl }) => {
           ))}
         </ul>
       )}
-      <p style={hint}>
-        Start / Stop / Restart control the native processes. Apply saves your
-        edits to this robot's config file and restarts so they take effect.
-      </p>
 
       {!cfg ? (
         <div style={{ color: "#888" }}>
@@ -290,12 +307,6 @@ const Device = ({ jwt, id, host, ssl }) => {
         </div>
       ) : (
         <>
-          <StoreSection
-            cfg={cfg}
-            setCfg={setCfg}
-            dirty={storeDirty}
-            onDiscard={discardStore}
-          />
           <ReplicationSection
             cfg={cfg}
             setCfg={setCfg}
@@ -304,6 +315,12 @@ const Device = ({ jwt, id, host, ssl }) => {
             consoleUrl={consoleUrl}
             dirty={repsDirty}
             onDiscard={discardReps}
+          />
+          <StoreSection
+            cfg={cfg}
+            setCfg={setCfg}
+            dirty={storeDirty}
+            onDiscard={discardStore}
           />
           <BridgeSection
             cfg={cfg}

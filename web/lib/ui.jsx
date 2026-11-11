@@ -1,5 +1,5 @@
 import React from "react";
-import { row, labelStyle, hint } from "./styles";
+import { row, labelStyle } from "./styles";
 
 export function Field({ label, children }) {
   return (
@@ -10,63 +10,77 @@ export function Field({ label, children }) {
   );
 }
 
-export function SectionHead({ title, href, dirty, onDiscard, children }) {
+export function GrowTextarea({ value, onChange, placeholder, minRows = 2 }) {
+  const ref = React.useRef(null);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={minRows}
+      style={{
+        width: "100%",
+        boxSizing: "border-box",
+        resize: "none",
+        overflow: "hidden",
+        fontFamily: "monospace",
+        fontSize: "12px",
+        padding: "4px 6px",
+      }}
+    />
+  );
+}
+
+export function SectionHead({ title, href, dirty, onDiscard }) {
   return (
     <div
       style={{
-        borderBottom: "1px solid #eee",
-        paddingBottom: "6px",
+        display: "flex",
+        alignItems: "baseline",
+        gap: "8px",
         marginBottom: "8px",
       }}
     >
-      <h5 style={{ margin: "0 0 2px", fontSize: "14px" }}>
-        {title}
-        {href && (
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              marginLeft: "8px",
-              fontSize: "12px",
-              fontWeight: 400,
-              color: "#0078d4",
-            }}
-          >
-            docs ↗
-          </a>
-        )}
-        {dirty && (
-          <span
-            style={{
-              marginLeft: "8px",
-              fontSize: "12px",
-              fontWeight: 400,
-              color: "#b06000",
-            }}
-          >
-            • unsaved, use Apply &amp; Restart above
-            {onDiscard && (
-              <button
-                onClick={onDiscard}
-                style={{
-                  marginLeft: "6px",
-                  padding: 0,
-                  background: "none",
-                  border: "none",
-                  color: "#0078d4",
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                  fontSize: "12px",
-                }}
-              >
-                discard
-              </button>
-            )}
-          </span>
-        )}
-      </h5>
-      <p style={{ ...hint, margin: 0 }}>{children}</p>
+      <h5 style={{ margin: 0, fontSize: "14px" }}>{title}</h5>
+      {href && (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontSize: "12px", color: "#0078d4" }}
+        >
+          docs
+        </a>
+      )}
+      {dirty && (
+        <span style={{ fontSize: "12px", color: "#b06000" }}>
+          unsaved
+          {onDiscard && (
+            <button
+              onClick={onDiscard}
+              style={{
+                marginLeft: "6px",
+                padding: 0,
+                background: "none",
+                border: "none",
+                color: "#0078d4",
+                cursor: "pointer",
+                textDecoration: "underline",
+                fontSize: "12px",
+              }}
+            >
+              discard
+            </button>
+          )}
+        </span>
+      )}
     </div>
   );
 }

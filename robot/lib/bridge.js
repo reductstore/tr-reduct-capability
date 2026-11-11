@@ -47,7 +47,6 @@ function buildEnvironment(bridge) {
     env.HOME = "/tmp";
   }
   if (bridge.variant.startsWith("ros2-")) {
-    env.ROS_DOMAIN_ID = String(bridge.rosDomainId ?? 0);
     env.FASTDDS_BUILTIN_TRANSPORTS = "UDPv4";
   }
   for (const variable of bridge.env || []) {

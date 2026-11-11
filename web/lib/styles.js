@@ -6,6 +6,8 @@ export const row = {
 };
 export const labelStyle = { minWidth: "150px", fontSize: "13px" };
 export const input = { flex: 1, padding: "4px 6px", fontSize: "13px" };
+export const select = { padding: "4px 6px", fontSize: "13px" };
+export const num = { width: "90px", padding: "4px 6px", fontSize: "13px" };
 
 const section = {
   margin: "16px 0",
@@ -20,8 +22,9 @@ export const sectionStyle = (dirty) =>
     : section;
 
 export const btn = {
-  padding: "6px 14px",
+  padding: "4px 10px",
   margin: "4px 4px 4px 0",
+  fontSize: "13px",
   cursor: "pointer",
 };
 export const barBtn = (enabled) => ({
@@ -44,6 +47,12 @@ export const divider = {
   alignSelf: "stretch",
   background: "#ddd",
   margin: "0 4px",
+};
+export const linkBtn = {
+  marginLeft: "auto",
+  fontSize: "13px",
+  color: "#0078d4",
+  textDecoration: "none",
 };
 export const hint = { fontSize: "12px", color: "#666", margin: "4px 0" };
 
