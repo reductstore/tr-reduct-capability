@@ -34,6 +34,48 @@ function assetsFor(platform, architecture, manifest = loadManifest()) {
   return assets;
 }
 
+function parseVersion(text) {
+  const match = text.match(/(\d+)\.(\d+)/);
+  return match ? [Number(match[1]), Number(match[2])] : null;
+}
+
+function compareVersions(a, b) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return 0;
+}
+
+function systemGlibc() {
+  try {
+    const out = execFileSync("ldd", ["--version"], { encoding: "utf8" });
+    const versions = [...out.matchAll(/(\d+\.\d+)/g)].map((m) => m[1]);
+    return parseVersion(versions[versions.length - 1]);
+  } catch {
+    return null;
+  }
+}
+
+function assertGlibc(assets) {
+  const required = assets
+    .map((asset) => asset.minGlibc)
+    .filter(Boolean)
+    .map(parseVersion)
+    .filter(Boolean);
+  if (!required.length) return;
+  const system = systemGlibc();
+  const highest = required.reduce((a, b) =>
+    compareVersions(a, b) > 0 ? a : b,
+  );
+  if (!system || compareVersions(system, highest) < 0) {
+    throw new Error(
+      `Native binaries require glibc >= ${highest.join(".")} (system: ${
+        system ? system.join(".") : "unknown"
+      }).`,
+    );
+  }
+}
+
 function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
@@ -161,6 +203,7 @@ async function installNativeBinaries({
   force = false,
 } = {}) {
   const assets = assetsFor(platform, architecture, manifest);
+  assertGlibc(assets);
   if (!force && isInstalled(destination, assets)) return;
 
   fs.mkdirSync(destination, { recursive: true });

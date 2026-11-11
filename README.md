@@ -15,6 +15,8 @@ Configure the store, Bridge, and replication tasks from the capability's device 
 
 Native binaries download automatically when the capability is installed.
 
+The ReductStore Pro binary requires glibc 2.38 or newer (Ubuntu 24.04+). On older systems the download is skipped and the capability reports that the binary is unavailable.
+
 | Component       | Linux x64 | Linux arm64       |
 | --------------- | --------- | ----------------- |
 | ReductStore Pro | Supported | Supported         |

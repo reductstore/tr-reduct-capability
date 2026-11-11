@@ -71,6 +71,7 @@ test("exposes the complete Linux x64 native binary set from the manifest", () =>
     entry: "reductstore-pro",
     archive: "zip",
     integrity: "transport",
+    minGlibc: "2.38",
     url: "https://api.reduct.store/v1/transitive/reductstore-pro/linux/x64",
   });
 });
@@ -82,6 +83,7 @@ test("exposes ReductStore Pro for Linux arm64", () => {
       entry: "reductstore-pro",
       archive: "zip",
       integrity: "transport",
+      minGlibc: "2.38",
       url: "https://api.reduct.store/v1/transitive/reductstore-pro/linux/arm64",
     },
   ]);
@@ -204,4 +206,39 @@ test("rejects a native binary whose checksum does not match", async () => {
   } finally {
     await server.close();
   }
+});
+
+test("rejects an asset whose minGlibc exceeds the system glibc before downloading", async () => {
+  const destination = fs.mkdtempSync(
+    path.join(os.tmpdir(), "tr-native-glibc-"),
+  );
+  let fetched = false;
+  const manifest = {
+    "linux-x64": [
+      {
+        bin: "reductstore",
+        entry: "reductstore-pro",
+        archive: "zip",
+        integrity: "transport",
+        minGlibc: "99.99",
+        url: "http://127.0.0.1:1/never",
+      },
+    ],
+  };
+
+  await assert.rejects(
+    () =>
+      installer.installNativeBinaries({
+        platform: "linux",
+        architecture: "x64",
+        destination,
+        manifest,
+        fetchImpl: async () => {
+          fetched = true;
+          throw new Error("must not download");
+        },
+      }),
+    /glibc/,
+  );
+  assert.equal(fetched, false);
 });
