@@ -162,7 +162,6 @@ const Device = ({ jwt, id, host, ssl }) => {
   return (
     <div>
       <StatusComponent />
-      <h4>Reduct</h4>
 
       <div
         style={{
