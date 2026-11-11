@@ -7,6 +7,7 @@ const path = require("node:path");
 const {
   CONFIG_PATH,
   STATE_DIR,
+  capabilityHome,
   defaults,
   deepMerge,
   loadConfig,
@@ -28,6 +29,32 @@ test("defaults define native store settings and a ROS 2 Jazzy bridge preset", ()
 
 test("default configuration is below the capability state directory", () => {
   assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
+});
+
+test("the capability home is the persistent package root above node_modules", () => {
+  assert.equal(
+    capabilityHome(
+      "/home/transitive/node_modules/@reductstore-tr/reductstore/robot/lib",
+      {},
+    ),
+    "/home/transitive",
+  );
+});
+
+test("CAPABILITY_HOME env overrides the derived capability home", () => {
+  assert.equal(
+    capabilityHome("/anywhere/node_modules/x/robot/lib", {
+      CAPABILITY_HOME: "/custom/home",
+    }),
+    "/custom/home",
+  );
+});
+
+test("the capability home falls back to the home directory outside an install", () => {
+  assert.equal(
+    capabilityHome("/opt/tr-reduct-capability/robot/lib", {}),
+    path.join(os.homedir(), ".tr-reduct-capability"),
+  );
 });
 
 test("deepMerge merges managed nested configuration without dropping siblings", () => {

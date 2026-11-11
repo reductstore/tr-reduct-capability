@@ -2,11 +2,15 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const CAPABILITY_HOME =
-  process.env.CAPABILITY_HOME ||
-  (os.homedir() === "/home/transitive"
-    ? "/home/transitive"
-    : path.join(os.homedir(), ".tr-reduct-capability"));
+function capabilityHome(moduleDir = __dirname, env = process.env) {
+  if (env.CAPABILITY_HOME) return env.CAPABILITY_HOME;
+  const marker = `${path.sep}node_modules${path.sep}`;
+  const index = moduleDir.indexOf(marker);
+  if (index >= 0) return moduleDir.slice(0, index);
+  return path.join(os.homedir(), ".tr-reduct-capability");
+}
+
+const CAPABILITY_HOME = capabilityHome();
 const STATE_DIR = process.env.STATE_DIR || path.join(CAPABILITY_HOME, "state");
 const CONFIG_PATH =
   process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
@@ -89,6 +93,7 @@ module.exports = {
   CONFIG_PATH,
   BRIDGE_TOML_PATH,
   BILLING_TOKEN_PATH,
+  capabilityHome,
   defaults,
   deepMerge,
   loadConfig,
