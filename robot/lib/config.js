@@ -9,7 +9,7 @@ const CAPABILITY_HOME =
     : path.join(os.homedir(), ".tr-reduct-capability"));
 const STATE_DIR = process.env.STATE_DIR || path.join(CAPABILITY_HOME, "state");
 const CONFIG_PATH =
-  process.env.CONFIG_PATH || path.join(CAPABILITY_HOME, "config.json");
+  process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
 const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
 const BILLING_TOKEN_PATH =
   process.env.BILLING_TOKEN_PATH || path.join(STATE_DIR, "billing-token");

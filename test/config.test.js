@@ -5,6 +5,8 @@ const os = require("node:os");
 const path = require("node:path");
 
 const {
+  CONFIG_PATH,
+  STATE_DIR,
   defaults,
   deepMerge,
   loadConfig,
@@ -22,6 +24,10 @@ test("defaults define native store settings and a ROS 2 Jazzy bridge preset", ()
   assert.equal(config.bridge.toml, "");
   assert.equal(config.bridge.enabled, false);
   assert.equal(config.autoStart, true);
+});
+
+test("default configuration is below the capability state directory", () => {
+  assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
 });
 
 test("deepMerge merges managed nested configuration without dropping siblings", () => {
