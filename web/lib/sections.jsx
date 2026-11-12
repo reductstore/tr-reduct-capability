@@ -9,7 +9,7 @@ import {
 } from "./presets";
 import { row, input, select, btn, hint, sectionStyle } from "./styles";
 
-export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
+export function StoreSection({ cfg, setCfg, dirty, dev, remote, consoleUrl }) {
   const store = cfg.store;
   const setStore = (k, v) => setCfg({ ...cfg, store: { ...store, [k]: v } });
   const setBucket = (k, v) => setStore("bucket", { ...store.bucket, [k]: v });
@@ -32,8 +32,6 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
       <SectionHead
         title="ReductStore"
         href="https://www.reduct.store/docs/configuration/provisioning"
-        dirty={dirty}
-        onDiscard={onDiscard}
       />
       <Field label="HTTP port">
         <input
@@ -84,6 +82,14 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
         )}
       </Field>
 
+      <ReplicationSection
+        cfg={cfg}
+        setCfg={setCfg}
+        dev={dev}
+        remote={remote}
+        consoleUrl={consoleUrl}
+      />
+
       <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
         Extra environment variables (optional)
       </div>
@@ -114,15 +120,7 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
   );
 }
 
-export function ReplicationSection({
-  cfg,
-  setCfg,
-  dev,
-  remote,
-  consoleUrl,
-  dirty,
-  onDiscard,
-}) {
+export function ReplicationSection({ cfg, setCfg, dev, remote, consoleUrl }) {
   const store = cfg.store;
   const reps = store.replications || [];
   const setReps = (v) =>
@@ -152,13 +150,27 @@ export function ReplicationSection({
     );
 
   return (
-    <div style={sectionStyle(dirty)}>
-      <SectionHead
-        title="Replication"
-        href="https://www.reduct.store/docs/guides/data-replication"
-        dirty={dirty}
-        onDiscard={onDiscard}
-      />
+    <div style={{ marginTop: "14px" }}>
+      <div
+        style={{
+          margin: "0 0 4px",
+          fontSize: "13px",
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "baseline",
+          gap: "8px",
+        }}
+      >
+        Replication
+        <a
+          href="https://www.reduct.store/docs/guides/data-replication"
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontSize: "12px", fontWeight: 400, color: "#0078d4" }}
+        >
+          docs
+        </a>
+      </div>
       {reps.map((r, i) => (
         <div
           key={i}
@@ -264,7 +276,7 @@ export function ReplicationSection({
   );
 }
 
-export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
+export function BridgeSection({ cfg, setCfg, dirty }) {
   const bridge = cfg.bridge;
   const setBridge = (k, v) => setCfg({ ...cfg, bridge: { ...bridge, [k]: v } });
 
@@ -306,21 +318,26 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
   };
   const rendered = renderPreset(bridge.preset, cfg.store, bridge.variant);
 
+  if (!bridge.enabled) {
+    return (
+      <div style={sectionStyle(dirty)}>
+        <SectionHead
+          title="ReductBridge"
+          href="https://www.reduct.store/docs/reduct-bridge"
+        />
+        <button style={btn} onClick={() => setBridge("enabled", true)}>
+          Add ReductBridge
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={sectionStyle(dirty)}>
       <SectionHead
         title="ReductBridge"
         href="https://www.reduct.store/docs/reduct-bridge"
-        dirty={dirty}
-        onDiscard={onDiscard}
       />
-      <Field label="Enabled">
-        <input
-          type="checkbox"
-          checked={!!bridge.enabled}
-          onChange={(e) => setBridge("enabled", e.target.checked)}
-        />
-      </Field>
       <Field label="Variant">
         <select
           style={select}
@@ -396,6 +413,12 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
           minRows={3}
         />
       </div>
+      <button
+        style={{ ...btn, marginTop: "8px" }}
+        onClick={() => setBridge("enabled", false)}
+      >
+        Remove ReductBridge
+      </button>
     </div>
   );
 }

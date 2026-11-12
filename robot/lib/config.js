@@ -18,7 +18,17 @@ const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
 const BILLING_TOKEN_PATH =
   process.env.BILLING_TOKEN_PATH || path.join(STATE_DIR, "billing-token");
 
+function bridgeVariantForReleases(releases) {
+  const r = String(releases || "").toLowerCase();
+  if (r.includes("humble")) return "ros2-humble";
+  if (r.includes("jazzy")) return "ros2-jazzy";
+  if (/noetic|melodic/.test(r)) return "ros1";
+  return "ros2-jazzy";
+}
+
 function defaults() {
+  const variant = bridgeVariantForReleases(process.env.TR_ROS_RELEASES);
+  const isRos2 = variant.startsWith("ros2");
   return {
     autoStart: true,
     store: {
@@ -30,10 +40,10 @@ function defaults() {
       env: [],
     },
     bridge: {
-      enabled: false,
-      variant: "ros2-jazzy",
-      preset: "ros2",
-      env: [{ key: "ROS_DOMAIN_ID", value: "0" }],
+      enabled: true,
+      variant,
+      preset: isRos2 ? "ros2" : "ros1",
+      env: isRos2 ? [{ key: "ROS_DOMAIN_ID", value: "0" }] : [],
       toml: "",
     },
   };
@@ -93,6 +103,7 @@ module.exports = {
   BRIDGE_TOML_PATH,
   BILLING_TOKEN_PATH,
   capabilityHome,
+  bridgeVariantForReleases,
   defaults,
   deepMerge,
   loadConfig,

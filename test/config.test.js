@@ -7,6 +7,7 @@ const path = require("node:path");
 const {
   CONFIG_PATH,
   STATE_DIR,
+  bridgeVariantForReleases,
   capabilityHome,
   defaults,
   deepMerge,
@@ -23,8 +24,15 @@ test("defaults define native store settings and a ROS 2 Jazzy bridge preset", ()
   assert.equal(config.bridge.variant, "ros2-jazzy");
   assert.equal(config.bridge.preset, "ros2");
   assert.equal(config.bridge.toml, "");
-  assert.equal(config.bridge.enabled, false);
+  assert.equal(config.bridge.enabled, true);
   assert.equal(config.autoStart, true);
+});
+
+test("the default bridge variant follows the robot's ROS release", () => {
+  assert.equal(bridgeVariantForReleases("humble"), "ros2-humble");
+  assert.equal(bridgeVariantForReleases("jazzy"), "ros2-jazzy");
+  assert.equal(bridgeVariantForReleases("noetic"), "ros1");
+  assert.equal(bridgeVariantForReleases(""), "ros2-jazzy");
 });
 
 test("default configuration is below the capability state directory", () => {

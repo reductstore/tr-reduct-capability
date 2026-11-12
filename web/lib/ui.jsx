@@ -38,7 +38,7 @@ export function GrowTextarea({ value, onChange, placeholder, minRows = 2 }) {
   );
 }
 
-export function SectionHead({ title, href, dirty, onDiscard }) {
+export function SectionHead({ title, href }) {
   return (
     <div
       style={{
@@ -58,28 +58,6 @@ export function SectionHead({ title, href, dirty, onDiscard }) {
         >
           docs
         </a>
-      )}
-      {dirty && (
-        <span style={{ fontSize: "12px", color: "#b06000" }}>
-          unsaved
-          {onDiscard && (
-            <button
-              onClick={onDiscard}
-              style={{
-                marginLeft: "6px",
-                padding: 0,
-                background: "none",
-                border: "none",
-                color: "#0078d4",
-                cursor: "pointer",
-                textDecoration: "underline",
-                fontSize: "12px",
-              }}
-            >
-              discard
-            </button>
-          )}
-        </span>
       )}
     </div>
   );

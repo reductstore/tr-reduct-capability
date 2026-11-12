@@ -1,12 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { createWebComponent, useTransitive } from "@transitive-sdk/utils-web";
 import { validateConfig } from "./lib/validate";
-import {
-  StoreSection,
-  ReplicationSection,
-  BridgeSection,
-} from "./lib/sections";
-import { barBtn, barPrimary, divider, btn, hint, linkBtn } from "./lib/styles";
+import { StoreSection, BridgeSection } from "./lib/sections";
+import { barBtn, barPrimary, btn, hint } from "./lib/styles";
 
 const [, capabilityName] = TR_PKG_NAME.split("/");
 
@@ -89,45 +85,16 @@ const Device = ({ jwt, id, host, ssl }) => {
   const dirty =
     cfg != null && remoteJson != null && JSON.stringify(cfg) !== remoteJson;
 
-  let remote = null;
-  try {
-    remote = remoteJson ? JSON.parse(remoteJson) : null;
-  } catch {
-    remote = null;
-  }
+  const remote = (() => {
+    try {
+      return remoteJson ? JSON.parse(remoteJson) : null;
+    } catch {
+      return null;
+    }
+  })();
   const differs = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
-  const withoutReps = (s) => {
-    const { replications, ...rest } = s || {};
-    return rest;
-  };
-  const storeDirty =
-    !!cfg &&
-    !!remote &&
-    differs(withoutReps(cfg.store), withoutReps(remote.store));
-  const repsDirty =
-    !!cfg &&
-    !!remote &&
-    differs(cfg.store.replications, remote.store?.replications);
+  const storeDirty = !!cfg && !!remote && differs(cfg.store, remote.store);
   const bridgeDirty = !!cfg && !!remote && differs(cfg.bridge, remote.bridge);
-
-  const clone = (x) => JSON.parse(JSON.stringify(x));
-  const discardStore = () =>
-    remote &&
-    setCfg({
-      ...cfg,
-      store: { ...clone(remote.store), replications: cfg.store.replications },
-    });
-  const discardReps = () =>
-    remote &&
-    setCfg({
-      ...cfg,
-      store: {
-        ...cfg.store,
-        replications: clone(remote.store?.replications || []),
-      },
-    });
-  const discardBridge = () =>
-    remote && setCfg({ ...cfg, bridge: clone(remote.bridge) });
 
   const state = device.state || "unknown";
   const storeText = device.store?.running
@@ -145,7 +112,7 @@ const Device = ({ jwt, id, host, ssl }) => {
   const repPending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
 
   const billingValid = device.billing?.state === "valid";
-  const error = device.error || device.store?.error || device.bridge?.error;
+  const error = device.error;
   const canStart = state !== "running" && billingValid;
   const canStop = state !== "stopped";
   const canRestart = billingValid;
@@ -174,7 +141,15 @@ const Device = ({ jwt, id, host, ssl }) => {
         }}
       >
         {[
-          ["State", state, state === "running" ? "#107c10" : "#666"],
+          [
+            "State",
+            state,
+            state === "running"
+              ? "#107c10"
+              : state === "error"
+                ? "#d13438"
+                : "#666",
+          ],
           [
             "Billing",
             billingValid ? "valid" : "invalid",
@@ -199,38 +174,13 @@ const Device = ({ jwt, id, host, ssl }) => {
         ))}
       </div>
 
-      {(error || feedback || device.message) && (
-        <pre
-          style={{
-            whiteSpace: "pre-wrap",
-            fontSize: "12px",
-            margin: "6px 0",
-            padding: "6px 8px",
-            borderRadius: "4px",
-            ...(error
-              ? {
-                  background: "#fde7e9",
-                  color: "#a4262c",
-                  border: "1px solid #f1707b",
-                }
-              : {
-                  background: "#f4f4f4",
-                  color: "#555",
-                  border: "1px solid #eee",
-                }),
-          }}
-        >
-          {error || feedback || device.message}
-        </pre>
-      )}
-
       <div
         style={{
           display: "flex",
           flexWrap: "wrap",
           alignItems: "center",
           gap: "6px",
-          margin: "10px 0 4px",
+          margin: "8px 0 4px",
         }}
       >
         <button
@@ -254,36 +204,65 @@ const Device = ({ jwt, id, host, ssl }) => {
         >
           Restart
         </button>
-        <span style={divider} />
-        <button
-          style={barPrimary(dirty && issues.length === 0)}
-          disabled={!dirty || issues.length > 0}
-          onClick={apply}
-        >
-          Apply &amp; restart
-        </button>
-        <button style={barBtn(dirty)} disabled={!dirty} onClick={discard}>
-          Discard
-        </button>
-        {consoleUrl && (
-          <a href={consoleUrl} target="_blank" rel="noreferrer" style={linkBtn}>
-            Open ReductStore
-          </a>
-        )}
       </div>
-      {issues.length > 0 && (
-        <ul
+
+      {consoleUrl && (
+        <div style={{ margin: "6px 0" }}>
+          <a
+            href={consoleUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-block",
+              fontSize: "13px",
+              color: "#0078d4",
+              textDecoration: "none",
+              border: "1px solid #0078d4",
+              borderRadius: "3px",
+              padding: "4px 10px",
+            }}
+          >
+            Open ReductStore console ↗
+          </a>
+        </div>
+      )}
+
+      {(feedback || device.message) && (
+        <pre
           style={{
-            ...hint,
-            color: "#c00",
-            margin: "2px 0 0",
-            paddingLeft: "18px",
+            whiteSpace: "pre-wrap",
+            fontSize: "12px",
+            margin: "6px 0",
+            padding: "6px 8px",
+            borderRadius: "4px",
+            background: "#f4f4f4",
+            color: "#555",
+            border: "1px solid #eee",
           }}
         >
-          {issues.map((msg, i) => (
-            <li key={i}>{msg}</li>
+          {feedback || device.message}
+        </pre>
+      )}
+
+      {logs.length > 0 && (
+        <details open={!!error}>
+          <summary>Reduct logs</summary>
+          {logs.map(([name, log]) => (
+            <div key={name}>
+              <strong>{name}</strong>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap",
+                  fontSize: "12px",
+                  maxHeight: "240px",
+                  overflow: "auto",
+                }}
+              >
+                {log}
+              </pre>
+            </div>
           ))}
-        </ul>
+        </details>
       )}
 
       {!cfg ? (
@@ -306,49 +285,62 @@ const Device = ({ jwt, id, host, ssl }) => {
         </div>
       ) : (
         <>
-          <ReplicationSection
-            cfg={cfg}
-            setCfg={setCfg}
-            dev={device}
-            remote={remote}
-            consoleUrl={consoleUrl}
-            dirty={repsDirty}
-            onDiscard={discardReps}
-          />
           <StoreSection
             cfg={cfg}
             setCfg={setCfg}
             dirty={storeDirty}
-            onDiscard={discardStore}
+            dev={device}
+            remote={remote}
+            consoleUrl={consoleUrl}
           />
-          <BridgeSection
-            cfg={cfg}
-            setCfg={setCfg}
-            dirty={bridgeDirty}
-            onDiscard={discardBridge}
-          />
-        </>
-      )}
-
-      {logs.length > 0 && (
-        <details>
-          <summary>Process logs</summary>
-          {logs.map(([name, log]) => (
-            <div key={name}>
-              <strong>{name}</strong>
-              <pre
+          <BridgeSection cfg={cfg} setCfg={setCfg} dirty={bridgeDirty} />
+          {dirty && (
+            <div style={{ margin: "10px 0 4px" }}>
+              <div
                 style={{
-                  whiteSpace: "pre-wrap",
-                  fontSize: "12px",
-                  maxHeight: "240px",
-                  overflow: "auto",
+                  fontSize: "13px",
+                  color: "#b06000",
+                  marginBottom: "4px",
                 }}
               >
-                {log}
-              </pre>
+                Unsaved changes
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <button
+                  style={barPrimary(issues.length === 0)}
+                  disabled={issues.length > 0}
+                  onClick={apply}
+                >
+                  Apply &amp; restart
+                </button>
+                <button style={barBtn(true)} onClick={discard}>
+                  Discard
+                </button>
+              </div>
+              {issues.length > 0 && (
+                <ul
+                  style={{
+                    ...hint,
+                    color: "#c00",
+                    margin: "2px 0 0",
+                    paddingLeft: "18px",
+                  }}
+                >
+                  {issues.map((msg, i) => (
+                    <li key={i}>{msg}</li>
+                  ))}
+                </ul>
+              )}
             </div>
-          ))}
-        </details>
+          )}
+        </>
       )}
     </div>
   );
