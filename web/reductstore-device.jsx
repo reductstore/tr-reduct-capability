@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createWebComponent, useTransitive } from "@transitive-sdk/utils-web";
 import { validateConfig } from "./lib/validate";
 import { StoreSection, BridgeSection } from "./lib/sections";
-import { barBtn, barPrimary, btn, hint } from "./lib/styles";
+import { btn } from "./lib/styles";
 
 const [, capabilityName] = TR_PKG_NAME.split("/");
 
@@ -53,36 +53,45 @@ const Device = ({ jwt, id, host, ssl }) => {
     setFeedback(msg);
     setTimeout(() => setFeedback(null), 4000);
   };
+  const commandLabel = {
+    "start-store": "Starting ReductStore",
+    "stop-store": "Stopping ReductStore",
+    "restart-store": "Restarting ReductStore",
+    "start-bridge": "Starting ReductBridge",
+    "stop-bridge": "Stopping ReductBridge",
+    "restart-bridge": "Restarting ReductBridge",
+  };
 
-  const sendCommand = (action) => {
+  const sendCommand = (action, config) => {
     if (!mqttSync) return;
     mqttSync.data.update(
       `${prefixVersion}/commands/request`,
-      JSON.stringify({ action, requestId: String(Date.now()), ts: Date.now() }),
+      JSON.stringify({
+        action,
+        config,
+        requestId: String(Date.now()),
+        ts: Date.now(),
+      }),
     );
   };
   const control = (action) => {
     sendCommand(action);
-    flash(`Sending ${action}…`);
+    flash(commandLabel[action]);
   };
-  const apply = () => {
-    if (!mqttSync || !cfg) return;
-    mqttSync.data.update(`${prefixVersion}/config/json`, JSON.stringify(cfg));
-    setTimeout(() => sendCommand("restart"), 400);
-    flash("Applying and restarting…");
-  };
-  const discard = () => {
-    if (!remoteJson) return;
-    try {
-      setCfg(JSON.parse(remoteJson));
-    } catch {
-      // ignore malformed
+  const apply = (action, nextCfg = cfg) => {
+    const nextIssues = validateConfig(nextCfg);
+    if (nextIssues.length > 0) {
+      flash(nextIssues[0]);
+      return;
     }
+    setCfg(nextCfg);
+    sendCommand(action, nextCfg);
+    flash(`Applying configuration and ${commandLabel[action].toLowerCase()}…`);
   };
-
-  const issues = cfg ? validateConfig(cfg) : [];
-  const dirty =
-    cfg != null && remoteJson != null && JSON.stringify(cfg) !== remoteJson;
+  const discard = (section) => {
+    if (!remote) return;
+    setCfg({ ...cfg, [section]: remote[section] });
+  };
 
   const remote = (() => {
     try {
@@ -111,18 +120,11 @@ const Device = ({ jwt, id, host, ssl }) => {
   const repPending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
 
   const billingValid = device.billing?.state === "valid";
-  const canStart = state !== "running" && billingValid;
-  const canStop = state !== "stopped";
-  const canRestart = billingValid;
   const storePort = device.store?.httpPort || cfg?.store.httpPort;
   const consoleUrl =
     device.store?.host && storePort
       ? `http://${device.store.host}:${storePort}/`
       : null;
-  const logs = [
-    ["ReductStore", device.store?.log],
-    ["ReductBridge", device.bridge?.log],
-  ].filter(([, log]) => log);
 
   return (
     <div>
@@ -170,59 +172,6 @@ const Device = ({ jwt, id, host, ssl }) => {
         ))}
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: "6px",
-          margin: "8px 0 4px",
-        }}
-      >
-        <button
-          style={barBtn(canStart)}
-          disabled={!canStart}
-          onClick={() => control("start")}
-        >
-          Start
-        </button>
-        <button
-          style={barBtn(canStop)}
-          disabled={!canStop}
-          onClick={() => control("stop")}
-        >
-          Stop
-        </button>
-        <button
-          style={barBtn(canRestart)}
-          disabled={!canRestart}
-          onClick={() => control("restart")}
-        >
-          Restart
-        </button>
-      </div>
-
-      {consoleUrl && (
-        <div style={{ margin: "6px 0" }}>
-          <a
-            href={consoleUrl}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              display: "inline-block",
-              fontSize: "13px",
-              color: "#0078d4",
-              textDecoration: "none",
-              border: "1px solid #0078d4",
-              borderRadius: "3px",
-              padding: "4px 10px",
-            }}
-          >
-            Open ReductStore console ↗
-          </a>
-        </div>
-      )}
-
       {feedback && (
         <pre
           style={{
@@ -239,22 +188,6 @@ const Device = ({ jwt, id, host, ssl }) => {
           {feedback}
         </pre>
       )}
-
-      {logs.map(([name, log]) => (
-        <details key={name}>
-          <summary>{name} logs</summary>
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              fontSize: "12px",
-              maxHeight: "240px",
-              overflow: "auto",
-            }}
-          >
-            {log}
-          </pre>
-        </details>
-      ))}
 
       {!cfg ? (
         <div style={{ color: "#888" }}>
@@ -283,54 +216,21 @@ const Device = ({ jwt, id, host, ssl }) => {
             dev={device}
             remote={remote}
             consoleUrl={consoleUrl}
+            billingValid={billingValid}
+            onControl={control}
+            onApply={apply}
+            onDiscard={() => discard("store")}
           />
-          <BridgeSection cfg={cfg} setCfg={setCfg} dirty={bridgeDirty} />
-          {dirty && (
-            <div style={{ margin: "10px 0 4px" }}>
-              <div
-                style={{
-                  fontSize: "13px",
-                  color: "#b06000",
-                  marginBottom: "4px",
-                }}
-              >
-                Unsaved changes
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <button
-                  style={barPrimary(issues.length === 0)}
-                  disabled={issues.length > 0}
-                  onClick={apply}
-                >
-                  Apply &amp; restart
-                </button>
-                <button style={barBtn(true)} onClick={discard}>
-                  Discard
-                </button>
-              </div>
-              {issues.length > 0 && (
-                <ul
-                  style={{
-                    ...hint,
-                    color: "#c00",
-                    margin: "2px 0 0",
-                    paddingLeft: "18px",
-                  }}
-                >
-                  {issues.map((msg, i) => (
-                    <li key={i}>{msg}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          <BridgeSection
+            cfg={cfg}
+            setCfg={setCfg}
+            dirty={bridgeDirty}
+            dev={device}
+            billingValid={billingValid}
+            onControl={control}
+            onApply={apply}
+            onDiscard={() => discard("bridge")}
+          />
         </>
       )}
     </div>

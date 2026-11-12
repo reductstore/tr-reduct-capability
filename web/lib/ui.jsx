@@ -38,7 +38,7 @@ export function GrowTextarea({ value, onChange, placeholder, minRows = 2 }) {
   );
 }
 
-export function SectionHead({ title, href }) {
+export function SectionHead({ title, href, children }) {
   return (
     <div
       style={{
@@ -59,6 +59,36 @@ export function SectionHead({ title, href }) {
           docs
         </a>
       )}
+      {children}
     </div>
+  );
+}
+
+export function ComponentLog({ name, log }) {
+  const details = React.useRef(null);
+  const output = React.useRef(null);
+  const scrollToEnd = () => {
+    if (details.current?.open && output.current) {
+      output.current.scrollTop = output.current.scrollHeight;
+    }
+  };
+  React.useLayoutEffect(scrollToEnd, [log]);
+
+  if (!log) return null;
+  return (
+    <details ref={details} onToggle={scrollToEnd}>
+      <summary>{name} logs</summary>
+      <pre
+        ref={output}
+        style={{
+          whiteSpace: "pre-wrap",
+          fontSize: "12px",
+          maxHeight: "240px",
+          overflow: "auto",
+        }}
+      >
+        {log}
+      </pre>
+    </details>
   );
 }

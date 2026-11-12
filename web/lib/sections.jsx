@@ -1,5 +1,5 @@
 import React from "react";
-import { Field, SectionHead, GrowTextarea } from "./ui";
+import { Field, SectionHead, GrowTextarea, ComponentLog } from "./ui";
 import {
   VARIANTS,
   PRESETS,
@@ -7,13 +7,33 @@ import {
   renderPreset,
   isPresetToml,
 } from "./presets";
-import { row, input, select, btn, hint, sectionStyle } from "./styles";
+import {
+  row,
+  input,
+  select,
+  btn,
+  hint,
+  sectionStyle,
+  barBtn,
+  barPrimary,
+} from "./styles";
 
-export function StoreSection({ cfg, setCfg, dirty, dev, remote, consoleUrl }) {
+export function StoreSection({
+  cfg,
+  setCfg,
+  dirty,
+  dev,
+  remote,
+  consoleUrl,
+  billingValid,
+  onControl,
+  onApply,
+  onDiscard,
+}) {
   const store = cfg.store;
   const setStore = (k, v) => setCfg({ ...cfg, store: { ...store, [k]: v } });
   const setBucket = (k, v) => setStore("bucket", { ...store.bucket, [k]: v });
-
+  const storeRunning = !!dev.store?.running;
   const env = store.env || [];
   const setEnv = (i, k, v) =>
     setStore(
@@ -33,6 +53,25 @@ export function StoreSection({ cfg, setCfg, dirty, dev, remote, consoleUrl }) {
         title="ReductStore"
         href="https://www.reduct.store/docs/configuration/provisioning"
       />
+      {consoleUrl && (
+        <a
+          href={consoleUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: "inline-block",
+            fontSize: "13px",
+            color: "#0078d4",
+            textDecoration: "none",
+            border: "1px solid #0078d4",
+            borderRadius: "3px",
+            padding: "4px 10px",
+            marginBottom: "8px",
+          }}
+        >
+          Open ReductStore console ↗
+        </a>
+      )}
       <Field label="HTTP port">
         <input
           style={input}
@@ -116,6 +155,17 @@ export function StoreSection({ cfg, setCfg, dirty, dev, remote, consoleUrl }) {
       <button style={btn} onClick={addEnv}>
         Add variable
       </button>
+      <ComponentLog name="ReductStore" log={dev.store?.log} />
+      <ComponentControls
+        component="store"
+        running={storeRunning}
+        canStop={storeRunning || !!dev.bridge?.running}
+        billingValid={billingValid}
+        dirty={dirty}
+        onControl={onControl}
+        onApply={onApply}
+        onDiscard={onDiscard}
+      />
     </div>
   );
 }
@@ -276,7 +326,16 @@ export function ReplicationSection({ cfg, setCfg, dev, remote, consoleUrl }) {
   );
 }
 
-export function BridgeSection({ cfg, setCfg, dirty }) {
+export function BridgeSection({
+  cfg,
+  setCfg,
+  dirty,
+  dev,
+  billingValid,
+  onControl,
+  onApply,
+  onDiscard,
+}) {
   const bridge = cfg.bridge;
   const setBridge = (k, v) => setCfg({ ...cfg, bridge: { ...bridge, [k]: v } });
 
@@ -325,7 +384,16 @@ export function BridgeSection({ cfg, setCfg, dirty }) {
           title="ReductBridge"
           href="https://www.reduct.store/docs/reduct-bridge"
         />
-        <button style={btn} onClick={() => setBridge("enabled", true)}>
+        <button
+          style={barPrimary(billingValid)}
+          disabled={!billingValid}
+          onClick={() =>
+            onApply("start-bridge", {
+              ...cfg,
+              bridge: { ...bridge, enabled: true },
+            })
+          }
+        >
           Enable ReductBridge
         </button>
       </div>
@@ -413,12 +481,90 @@ export function BridgeSection({ cfg, setCfg, dirty }) {
           minRows={3}
         />
       </div>
-      <button
-        style={{ ...btn, marginTop: "8px" }}
-        onClick={() => setBridge("enabled", false)}
-      >
-        Disable ReductBridge
-      </button>
+      <ComponentLog name="ReductBridge" log={dev.bridge?.log} />
+      <ComponentControls
+        component="bridge"
+        running={!!dev.bridge?.running}
+        canStop={!!dev.bridge?.running}
+        billingValid={billingValid}
+        dirty={dirty}
+        onControl={onControl}
+        onApply={onApply}
+        onDiscard={onDiscard}
+        disable={
+          <button
+            style={barBtn(true)}
+            onClick={() =>
+              onApply("stop-bridge", {
+                ...cfg,
+                bridge: { ...bridge, enabled: false },
+              })
+            }
+          >
+            Disable ReductBridge
+          </button>
+        }
+      />
+    </div>
+  );
+}
+function ComponentControls({
+  component,
+  running,
+  canStop,
+  billingValid,
+  dirty,
+  onControl,
+  onApply,
+  onDiscard,
+  disable,
+}) {
+  const title = component === "store" ? "ReductStore" : "ReductBridge";
+  return (
+    <div style={{ marginTop: "10px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+        <button
+          style={barBtn(billingValid && !running)}
+          disabled={!billingValid || running}
+          onClick={() => onControl(`start-${component}`)}
+        >
+          Start
+        </button>
+        <button
+          style={barBtn(canStop)}
+          disabled={!canStop}
+          onClick={() => onControl(`stop-${component}`)}
+        >
+          Stop
+        </button>
+        <button
+          style={barBtn(billingValid)}
+          disabled={!billingValid}
+          onClick={() => onControl(`restart-${component}`)}
+        >
+          Restart
+        </button>
+        {disable}
+      </div>
+      {dirty && (
+        <div style={{ marginTop: "6px" }}>
+          <div
+            style={{ fontSize: "13px", color: "#b06000", marginBottom: "4px" }}
+          >
+            Unsaved changes
+          </div>
+          <button
+            style={barPrimary(billingValid)}
+            disabled={!billingValid}
+            onClick={() => onApply(`restart-${component}`)}
+          >
+            Apply &amp; restart {title}
+          </button>
+          <button style={barBtn(true)} onClick={onDiscard}>
+            Discard
+          </button>
+        </div>
+      )}
     </div>
   );
 }

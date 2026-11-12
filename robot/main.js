@@ -15,6 +15,10 @@ const {
   loadPersistedToken,
   deletePersistedToken,
 } = require("./lib/billing-token");
+const {
+  requiresBilling,
+  runComponentAction,
+} = require("./lib/component-actions");
 
 const log = getLogger("reductstore-robot");
 log.setLevel(process.env.LOG_LEVEL || "info");
@@ -50,7 +54,7 @@ const billingGate = isStandalone
         }),
       onEntitled: () => {
         if (mqttSync && config.autoStart) {
-          enqueue(() => runCommand("start"));
+          enqueue(() => runCommand("restart-store"));
         }
       },
       onDenied: (reason) => {
@@ -126,44 +130,23 @@ async function publishStatus(message) {
   data.update("/device/bridge/log", bridgeStatus.log || null);
 }
 
-async function bringUp(message) {
-  config = loadConfig();
-  publishDetails();
-  const managed = (await store.getReplications(config.store).catch(() => []))
-    .filter((task) => task.is_provisioned)
-    .map((task) => task.name);
-  await store.start(config.store, { billingToken: lastBillingToken });
-  const ready = await store.waitUntilAlive(config.store);
-  if (!ready) throw new Error("ReductStore did not become ready in time");
-  await store.pruneReplications(config.store, managed);
-  if (config.bridge.enabled) {
-    await bridge.start(config.bridge, { store: config.store });
-  }
-  lastError = null;
-  await publishStatus(message);
-}
-
-async function runCommand(action) {
+async function runCommand(action, patch) {
   try {
-    if (action === "start" || action === "restart") {
-      if (!hasBillingEntitlement()) {
-        throw new Error("a valid Transitive billing token is required");
-      }
+    if (patch && typeof patch === "object") {
+      config = saveConfig(config, patch);
+      publishDetails();
     }
-
-    if (action === "start") {
-      await bringUp("started");
-    } else if (action === "stop") {
-      await bridge.stop(config.bridge);
-      await store.stop(config.store);
-      lastError = null;
-      await publishStatus("stopped");
-    } else if (action === "restart") {
-      await bridge.stop(config.bridge);
-      await bringUp("restarted");
-    } else {
-      log.warn(`unknown command: ${action}`);
+    if (requiresBilling(action) && !hasBillingEntitlement()) {
+      throw new Error("a valid Transitive billing token is required");
     }
+    const message = await runComponentAction(action, {
+      config,
+      store,
+      bridge,
+      billingToken: lastBillingToken,
+    });
+    lastError = null;
+    await publishStatus(message);
   } catch (error) {
     lastError = error.message;
     log.error(`${action} failed: ${error.message}`);
@@ -182,7 +165,7 @@ function onCommand(value, key) {
   if (!command?.action || command.requestId === lastRequestId) return;
   lastRequestId = command.requestId;
   log.info(`command: ${command.action}`);
-  enqueue(() => runCommand(command.action));
+  enqueue(() => runCommand(command.action, command.config));
 }
 
 function onConfig(value, key) {
@@ -282,7 +265,7 @@ async function boot() {
     if (config.autoStart) {
       if (isStandalone || hasBillingEntitlement()) {
         log.info("autoStart: starting");
-        enqueue(() => runCommand("start"));
+        enqueue(() => runCommand("restart-store"));
       } else {
         await publishStatus(
           "waiting for a valid Transitive billing token",
