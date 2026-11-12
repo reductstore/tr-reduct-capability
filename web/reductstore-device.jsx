@@ -7,15 +7,14 @@ import { barBtn, barPrimary, btn, hint } from "./lib/styles";
 const [, capabilityName] = TR_PKG_NAME.split("/");
 
 const Device = ({ jwt, id, host, ssl }) => {
-  const { mqttSync, data, StatusComponent, prefixVersion, prefixPathVersion } =
-    useTransitive({
-      jwt,
-      id,
-      host,
-      ssl,
-      capability: TR_PKG_NAME,
-      versionNS: TR_PKG_VERSION_NS,
-    });
+  const { mqttSync, data, prefixVersion, prefixPathVersion } = useTransitive({
+    jwt,
+    id,
+    host,
+    ssl,
+    capability: TR_PKG_NAME,
+    versionNS: TR_PKG_VERSION_NS,
+  });
 
   const [cfg, setCfg] = useState(null);
   const [feedback, setFeedback] = useState(null);
@@ -112,7 +111,6 @@ const Device = ({ jwt, id, host, ssl }) => {
   const repPending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
 
   const billingValid = device.billing?.state === "valid";
-  const error = device.error;
   const canStart = state !== "running" && billingValid;
   const canStop = state !== "stopped";
   const canRestart = billingValid;
@@ -128,8 +126,6 @@ const Device = ({ jwt, id, host, ssl }) => {
 
   return (
     <div>
-      <StatusComponent />
-
       <div
         style={{
           display: "grid",
@@ -227,7 +223,7 @@ const Device = ({ jwt, id, host, ssl }) => {
         </div>
       )}
 
-      {(feedback || device.message) && (
+      {feedback && (
         <pre
           style={{
             whiteSpace: "pre-wrap",
@@ -240,30 +236,25 @@ const Device = ({ jwt, id, host, ssl }) => {
             border: "1px solid #eee",
           }}
         >
-          {feedback || device.message}
+          {feedback}
         </pre>
       )}
 
-      {logs.length > 0 && (
-        <details open={!!error}>
-          <summary>Reduct logs</summary>
-          {logs.map(([name, log]) => (
-            <div key={name}>
-              <strong>{name}</strong>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  fontSize: "12px",
-                  maxHeight: "240px",
-                  overflow: "auto",
-                }}
-              >
-                {log}
-              </pre>
-            </div>
-          ))}
+      {logs.map(([name, log]) => (
+        <details key={name}>
+          <summary>{name} logs</summary>
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              fontSize: "12px",
+              maxHeight: "240px",
+              overflow: "auto",
+            }}
+          >
+            {log}
+          </pre>
         </details>
-      )}
+      ))}
 
       {!cfg ? (
         <div style={{ color: "#888" }}>

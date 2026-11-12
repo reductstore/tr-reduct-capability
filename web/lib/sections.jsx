@@ -326,7 +326,7 @@ export function BridgeSection({ cfg, setCfg, dirty }) {
           href="https://www.reduct.store/docs/reduct-bridge"
         />
         <button style={btn} onClick={() => setBridge("enabled", true)}>
-          Add ReductBridge
+          Enable ReductBridge
         </button>
       </div>
     );
@@ -417,7 +417,7 @@ export function BridgeSection({ cfg, setCfg, dirty }) {
         style={{ ...btn, marginTop: "8px" }}
         onClick={() => setBridge("enabled", false)}
       >
-        Remove ReductBridge
+        Disable ReductBridge
       </button>
     </div>
   );
