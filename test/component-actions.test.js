@@ -1,6 +1,9 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { runComponentAction } = require("../robot/lib/component-actions");
+const {
+  runComponentAction,
+  effectiveAction,
+} = require("../robot/lib/component-actions");
 
 function dependencies({
   bridgeEnabled = true,
@@ -86,4 +89,24 @@ test("starting ReductBridge requires a live ReductStore", async () => {
     /ReductStore must be running before starting ReductBridge/,
   );
   assert.deepEqual(options.events, ["store.status", "store.alive"]);
+});
+
+test("applying ReductBridge changes restarts the Store when its settings also changed", () => {
+  const started = JSON.stringify({ httpPort: 8383 });
+  const changed = { store: { httpPort: 9000 }, bridge: {} };
+  assert.equal(
+    effectiveAction("restart-bridge", changed, started),
+    "restart-store",
+  );
+});
+
+test("applying ReductBridge changes alone keeps a bridge-only restart", () => {
+  const started = JSON.stringify({ httpPort: 8383 });
+  const same = { store: { httpPort: 8383 }, bridge: {} };
+  assert.equal(
+    effectiveAction("restart-bridge", same, started),
+    "restart-bridge",
+  );
+  assert.equal(effectiveAction("restart-bridge", same, null), "restart-bridge");
+  assert.equal(effectiveAction("restart-store", same, "{}"), "restart-store");
 });

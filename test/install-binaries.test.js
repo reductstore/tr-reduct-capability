@@ -76,6 +76,19 @@ test("exposes the complete Linux x64 native binary set from the manifest", () =>
   });
 });
 
+test("every bridge asset is pinned to a sha256 checksum", () => {
+  for (const arch of ["x64", "arm64"]) {
+    for (const asset of installer.assetsFor("linux", arch)) {
+      if (asset.bin === "reductstore") continue;
+      assert.match(
+        asset.sha256 || "",
+        /^[0-9a-f]{64}$/,
+        `${arch} ${asset.bin} must pin a sha256`,
+      );
+    }
+  }
+});
+
 test("exposes ReductStore Pro and every bridge variant for Linux arm64", () => {
   assert.deepEqual(installer.assetsFor("linux", "arm64"), [
     {

@@ -20,6 +20,17 @@ function requiresBilling(action) {
   return !["stop-store", "stop-bridge"].includes(action);
 }
 
+function effectiveAction(action, config, startedStoreConfig) {
+  if (
+    action === "restart-bridge" &&
+    startedStoreConfig != null &&
+    JSON.stringify(config.store) !== startedStoreConfig
+  ) {
+    return "restart-store";
+  }
+  return action;
+}
+
 async function runComponentAction(action, options) {
   const { config, store, bridge } = options;
   switch (action) {
@@ -56,4 +67,4 @@ async function runComponentAction(action, options) {
   }
 }
 
-module.exports = { requiresBilling, runComponentAction };
+module.exports = { requiresBilling, runComponentAction, effectiveAction };

@@ -15,11 +15,17 @@ Configure the store, Bridge, and replication tasks from the capability's device 
 
 Native binaries download automatically when the capability is installed.
 
-The ReductStore Pro binary requires glibc 2.38 or newer (Ubuntu 24.04+). On older systems the download is skipped and the capability reports that the binary is unavailable.
+The ReductStore Pro binary requires glibc 2.38 or newer (Ubuntu 24.04+).
 
-| Component       | Linux x64 | Linux arm64       |
-| --------------- | --------- | ----------------- |
-| ReductStore Pro | Supported | Supported         |
-| ReductBridge    | Supported | Not yet available |
+| Component       | Linux x64 | Linux arm64 |
+| --------------- | --------- | ----------- |
+| ReductStore Pro | Supported | Supported   |
+| ReductBridge    | Supported | Supported   |
 
-ReductBridge's upstream release currently publishes only Linux x64 binaries. On Linux arm64, leave the Bridge disabled and use the local ReductStore directly until an arm64 Bridge release is available.
+Downloaded binaries are verified against pinned SHA-256 checksums. On systems whose glibc is older than ReductStore Pro requires, the download is skipped, the capability still installs, and it reports that the binary is unavailable.
+
+## Uninstalling
+
+Stopping or uninstalling the capability stops ReductStore and ReductBridge.
+
+By default ReductStore writes its data inside the capability's state directory. Uninstalling the capability can delete that directory and the data it holds. Back up or replicate anything you need before uninstalling, or set the store data path to a location outside the capability's state directory.

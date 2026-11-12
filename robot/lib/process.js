@@ -1,6 +1,10 @@
 const { spawn } = require("node:child_process");
+const { Buffer } = require("node:buffer");
 const fs = require("node:fs");
 const path = require("node:path");
+
+const TAIL_BYTES = 4096;
+const MAX_LOG_BYTES = 1024 * 1024;
 
 function runtimePaths(runtimeDir, name) {
   return {
@@ -28,12 +32,29 @@ function isRunning(pid) {
   }
 }
 
-function readLog(logPath) {
+function readLog(logPath, maxBytes = TAIL_BYTES) {
+  let fd;
   try {
-    const log = fs.readFileSync(logPath, "utf8");
-    return log.slice(-4096).trim() || undefined;
+    fd = fs.openSync(logPath, "r");
+    const size = fs.fstatSync(fd).size;
+    const start = Math.max(0, size - maxBytes);
+    const length = size - start;
+    if (length === 0) return undefined;
+    const buffer = Buffer.alloc(length);
+    fs.readSync(fd, buffer, 0, length, start);
+    return buffer.toString("utf8").trim() || undefined;
   } catch {
     return undefined;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
+
+function capLog(logPath, maxBytes = MAX_LOG_BYTES) {
+  try {
+    if (fs.statSync(logPath).size > maxBytes) fs.truncateSync(logPath, 0);
+  } catch {
+    // no log file yet
   }
 }
 
@@ -43,6 +64,7 @@ function status(runtimeDir, name) {
   const running = isRunning(pid);
   if (!running && pid) fs.rmSync(pidPath, { force: true });
   const log = readLog(logPath);
+  capLog(logPath);
   return {
     pid: running ? pid : null,
     running,
@@ -85,7 +107,7 @@ function start(runtimeDir, name, command, args, env) {
   const { logPath, pidPath } = runtimePaths(runtimeDir, name);
   fs.mkdirSync(runtimeDir, { recursive: true });
   fs.rmSync(pidPath, { force: true });
-  const log = fs.openSync(logPath, "a");
+  const log = fs.openSync(logPath, "w");
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -106,4 +128,4 @@ function start(runtimeDir, name, command, args, env) {
   });
 }
 
-module.exports = { runtimePaths, status, start, stop };
+module.exports = { runtimePaths, status, start, stop, readLog, capLog };

@@ -16,6 +16,7 @@ const {
   deletePersistedToken,
 } = require("./lib/billing-token");
 const {
+  effectiveAction,
   requiresBilling,
   runComponentAction,
 } = require("./lib/component-actions");
@@ -32,6 +33,7 @@ let lastError = null;
 let lastRequestId = null;
 let lastBillingToken = null;
 let chain = Promise.resolve();
+let startedStoreConfig = null;
 
 function enqueue(fn) {
   chain = chain.then(fn).catch((error) => log.warn(error.message));
@@ -136,6 +138,7 @@ async function runCommand(action, patch) {
       config = saveConfig(config, patch);
       publishDetails();
     }
+    action = effectiveAction(action, config, startedStoreConfig);
     if (requiresBilling(action) && !hasBillingEntitlement()) {
       throw new Error("a valid Transitive billing token is required");
     }
@@ -145,6 +148,9 @@ async function runCommand(action, patch) {
       bridge,
       billingToken: lastBillingToken,
     });
+    if (action === "start-store" || action === "restart-store") {
+      startedStoreConfig = JSON.stringify(config.store);
+    }
     lastError = null;
     await publishStatus(message);
   } catch (error) {
@@ -197,7 +203,13 @@ function onBillingToken(token) {
 }
 
 async function gracefulShutdown(signal) {
-  log.info(`${signal} received, shutting down`);
+  log.info(`${signal} received, stopping native processes`);
+  try {
+    await bridge.stop(config.bridge, { graceMs: 2000 });
+    await store.stop(config.store, { graceMs: 2000 });
+  } catch (error) {
+    log.warn(error.message);
+  }
   mqttSync?.mqtt?.end?.();
   billingGate?.dispose();
   process.exit(0);

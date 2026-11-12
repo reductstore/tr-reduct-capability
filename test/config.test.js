@@ -12,12 +12,14 @@ const {
   defaults,
   deepMerge,
   loadConfig,
+  readOrCreateApiToken,
   saveConfig,
 } = require("../robot/lib/config");
 
 test("defaults define native store settings and a ROS 2 Jazzy bridge preset", () => {
   const config = defaults();
-  assert.equal(config.store.apiToken, "transitive-local-token");
+  assert.match(config.store.apiToken, /^[0-9a-f]{48}$/);
+  assert.equal(defaults().store.apiToken, config.store.apiToken);
   assert.equal(config.store.bucket.name, "robot-data");
   assert.equal(config.store.bucket.quotaType, "FIFO");
   assert.equal(config.store.bucket.quotaSize, "1GB");
@@ -26,6 +28,21 @@ test("defaults define native store settings and a ROS 2 Jazzy bridge preset", ()
   assert.equal(config.bridge.toml, "");
   assert.equal(config.bridge.enabled, true);
   assert.equal(config.autoStart, true);
+});
+
+test("readOrCreateApiToken generates a unique token and persists it", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-token-"));
+  const tokenPath = path.join(dir, "api-token");
+  const first = readOrCreateApiToken(tokenPath);
+  assert.match(first, /^[0-9a-f]{48}$/);
+  assert.equal(readOrCreateApiToken(tokenPath), first);
+  assert.equal(fs.readFileSync(tokenPath, "utf8").trim(), first);
+
+  const other = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "tr-token-")),
+    "api-token",
+  );
+  assert.notEqual(readOrCreateApiToken(other), first);
 });
 
 test("the default bridge variant follows the robot's ROS release", () => {

@@ -238,7 +238,17 @@ if (require.main === module) {
       );
       return;
     }
-    await installNativeBinaries();
+    try {
+      await installNativeBinaries();
+    } catch (error) {
+      if (/glibc/i.test(error.message)) {
+        process.stderr.write(
+          `Skipping native binary download: ${error.message}\n`,
+        );
+        return;
+      }
+      throw error;
+    }
   };
   run().catch((error) => {
     process.stderr.write(`${error.message}\n`);

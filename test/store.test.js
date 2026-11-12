@@ -9,7 +9,8 @@ const { defaults } = require("../robot/lib/config");
 
 test("buildEnvironment configures native ReductStore from its config section", () => {
   const env = store.buildEnvironment(defaults().store);
-  assert.equal(env.RS_API_TOKEN, "transitive-local-token");
+  assert.match(env.RS_API_TOKEN, /^[0-9a-f]{48}$/);
+  assert.equal(env.RS_API_TOKEN, defaults().store.apiToken);
   assert.equal(env.RS_BUCKET_1_NAME, "robot-data");
   assert.equal(env.RS_BUCKET_1_QUOTA_TYPE, "FIFO");
   assert.equal(env.RS_BUCKET_1_QUOTA_SIZE, "1GB");

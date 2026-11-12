@@ -11,26 +11,26 @@
     {
       "bin": "reduct-bridge-ros2-jazzy",
       "entry": "reduct-bridge",
-      "integrity": "transport",
-      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.0/bridge-ros2-jazzy.x86_64-unknown-linux-gnu.tar.gz"
+      "sha256": "e51aa25ddee1e68bc35ee795c95e2ca504795435d50736a6eeb622382314abe8",
+      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.7/bridge-ros2-jazzy.x86_64-unknown-linux-gnu.tar.gz"
     },
     {
       "bin": "reduct-bridge-ros2-humble",
       "entry": "reduct-bridge",
-      "integrity": "transport",
-      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.0/bridge-ros2-humble.x86_64-unknown-linux-gnu.tar.gz"
+      "sha256": "c22a04fe6f7baf4b3e90af39c5f2b6f9c4b6411d4faab1dd833188c37d128630",
+      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.7/bridge-ros2-humble.x86_64-unknown-linux-gnu.tar.gz"
     },
     {
       "bin": "reduct-bridge-ros1",
       "entry": "reduct-bridge",
-      "integrity": "transport",
-      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.0/bridge-ros1.x86_64-unknown-linux-gnu.tar.gz"
+      "sha256": "81d943338f443a289c3a7748915d3a097b47cd411c4a1d51ccba3c6aef34b32d",
+      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.7/bridge-ros1.x86_64-unknown-linux-gnu.tar.gz"
     },
     {
       "bin": "reduct-bridge-iot",
       "entry": "reduct-bridge",
-      "integrity": "transport",
-      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.0/bridge-iot.x86_64-unknown-linux-gnu.tar.gz"
+      "sha256": "285c3634373a223365520511e0f21201ce302db8498aa24bfaec96b30ec56465",
+      "url": "https://github.com/reductstore/reduct-bridge/releases/download/v0.5.7/bridge-iot.x86_64-unknown-linux-gnu.tar.gz"
     }
   ],
   "linux-arm64": [

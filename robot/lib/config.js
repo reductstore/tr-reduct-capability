@@ -1,3 +1,4 @@
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -17,6 +18,8 @@ const CONFIG_PATH =
 const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
 const BILLING_TOKEN_PATH =
   process.env.BILLING_TOKEN_PATH || path.join(STATE_DIR, "billing-token");
+const API_TOKEN_PATH =
+  process.env.API_TOKEN_PATH || path.join(STATE_DIR, "api-token");
 
 function bridgeVariantForReleases(releases) {
   const r = String(releases || "").toLowerCase();
@@ -24,6 +27,20 @@ function bridgeVariantForReleases(releases) {
   if (r.includes("jazzy")) return "ros2-jazzy";
   if (/noetic|melodic/.test(r)) return "ros1";
   return "ros2-jazzy";
+}
+
+function readOrCreateApiToken(tokenPath = API_TOKEN_PATH) {
+  try {
+    const existing = fs.readFileSync(tokenPath, "utf8").trim();
+    if (existing) return existing;
+  } catch {
+    // no token persisted yet; generate one below
+  }
+  const token = crypto.randomBytes(24).toString("hex");
+  const directory = path.dirname(tokenPath);
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(tokenPath, `${token}\n`, { mode: 0o600 });
+  return token;
 }
 
 function defaults() {
@@ -34,7 +51,7 @@ function defaults() {
     store: {
       httpPort: 8383,
       dataPath: path.join(STATE_DIR, "reductstore-data"),
-      apiToken: "transitive-local-token",
+      apiToken: readOrCreateApiToken(),
       bucket: { name: "robot-data", quotaType: "FIFO", quotaSize: "1GB" },
       replications: [],
       env: [],
@@ -102,6 +119,8 @@ module.exports = {
   CONFIG_PATH,
   BRIDGE_TOML_PATH,
   BILLING_TOKEN_PATH,
+  API_TOKEN_PATH,
+  readOrCreateApiToken,
   capabilityHome,
   bridgeVariantForReleases,
   defaults,
