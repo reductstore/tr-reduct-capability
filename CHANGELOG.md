@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Run native ReductStore and ReductBridge processes with private configuration, Transitive billing enforcement, a unique generated store API token, checksum-verified binary downloads, bounded native logs, clean process shutdown, and arm64 support, [PR-6](https://github.com/reductstore/tr-reduct-capability/pull/6).
+- Run ReductStore and ReductBridge natively with Transitive billing, [PR-6](https://github.com/reductstore/tr-reduct-capability/pull/6).
 
 ## [0.1.0] - 2026-07-23
 
