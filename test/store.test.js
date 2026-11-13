@@ -59,13 +59,15 @@ test("starts, reports, and stops a detached native process", async () => {
   const processOptions = {
     runtimeDir: dir,
     executable: process.execPath,
-    args: ["-e", "setInterval(() => {}, 1000)"],
+    args: ["-e", "console.error('store started'); setInterval(() => {}, 1000)"],
   };
 
   await store.start(config, processOptions);
   assert.equal((await store.status(config, processOptions)).running, true);
+  await new Promise((resolve) => setTimeout(resolve, 50));
   await store.stop(config, processOptions);
   assert.equal((await store.status(config, processOptions)).running, false);
+  assert.equal((await store.status(config, processOptions)).error, undefined);
 });
 
 test("store runtime files stay in the state directory regardless of dataPath", () => {

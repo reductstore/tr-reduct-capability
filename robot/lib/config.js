@@ -45,6 +45,7 @@ function readOrCreateApiToken(tokenPath = API_TOKEN_PATH) {
 
 function defaults() {
   const variant = bridgeVariantForReleases(process.env.TR_ROS_RELEASES);
+  const isRos = Boolean(String(process.env.TR_ROS_RELEASES || "").trim());
   const isRos2 = variant.startsWith("ros2");
   return {
     autoStart: true,
@@ -57,7 +58,7 @@ function defaults() {
       env: [],
     },
     bridge: {
-      enabled: true,
+      enabled: isRos,
       variant,
       preset: isRos2 ? "ros2" : "ros1",
       env: isRos2 ? [{ key: "ROS_DOMAIN_ID", value: "0" }] : [],

@@ -22,7 +22,7 @@ function requiresBilling(action) {
 
 function effectiveAction(action, config, startedStoreConfig) {
   if (
-    action === "restart-bridge" &&
+    ["start-bridge", "stop-bridge", "restart-bridge"].includes(action) &&
     startedStoreConfig != null &&
     JSON.stringify(config.store) !== startedStoreConfig
   ) {
@@ -52,8 +52,7 @@ async function runComponentAction(action, options) {
       await startStore(options);
       return "ReductStore started";
     case "stop-store":
-      await bridge.stop(config.bridge);
-      await store.stop(config.store);
+      await stopAll({ config, store, bridge });
       return "ReductStore stopped";
     case "restart-store":
       await bridge.stop(config.bridge);

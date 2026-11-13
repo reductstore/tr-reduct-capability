@@ -71,7 +71,9 @@ function status(runtimeDir, name) {
     log,
     error: running
       ? undefined
-      : log || (pid ? `process ${pid} exited` : undefined),
+      : pid
+        ? log || `process ${pid} exited`
+        : undefined,
   };
 }
 
@@ -98,7 +100,10 @@ async function stop(runtimeDir, name, { graceMs = 5000 } = {}) {
   terminate(pid, "SIGTERM");
   const deadline = Date.now() + graceMs;
   while (isRunning(pid) && Date.now() < deadline) await sleep(50);
-  if (isRunning(pid)) terminate(pid, "SIGKILL");
+  if (isRunning(pid)) {
+    terminate(pid, "SIGKILL");
+    while (isRunning(pid)) await sleep(50);
+  }
   fs.rmSync(pidPath, { force: true });
   return { running: false };
 }
@@ -107,7 +112,8 @@ function start(runtimeDir, name, command, args, env) {
   const { logPath, pidPath } = runtimePaths(runtimeDir, name);
   fs.mkdirSync(runtimeDir, { recursive: true });
   fs.rmSync(pidPath, { force: true });
-  const log = fs.openSync(logPath, "w");
+  fs.writeFileSync(logPath, "", "utf8");
+  const log = fs.openSync(logPath, "a");
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {

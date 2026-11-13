@@ -82,6 +82,20 @@ test("stopping ReductStore stops ReductBridge first", async () => {
   assert.deepEqual(options.events, ["bridge.stop", "store.stop"]);
 });
 
+test("stopping ReductStore still stops it when ReductBridge stop fails", async () => {
+  const options = dependencies();
+  options.bridge.stop = async () => {
+    options.events.push("bridge.stop");
+    throw new Error("bridge boom");
+  };
+
+  assert.equal(
+    await runComponentAction("stop-store", options),
+    "ReductStore stopped",
+  );
+  assert.deepEqual(options.events, ["bridge.stop", "store.stop"]);
+});
+
 test("starting ReductBridge requires a live ReductStore", async () => {
   const options = dependencies({ alive: false });
 
@@ -134,4 +148,18 @@ test("applying ReductBridge changes alone keeps a bridge-only restart", () => {
   );
   assert.equal(effectiveAction("restart-bridge", same, null), "restart-bridge");
   assert.equal(effectiveAction("restart-store", same, "{}"), "restart-store");
+});
+
+test("enabling or disabling ReductBridge restarts changed Store settings", () => {
+  const started = JSON.stringify({ httpPort: 8383 });
+  const changed = { store: { httpPort: 9000 }, bridge: {} };
+
+  assert.equal(
+    effectiveAction("start-bridge", changed, started),
+    "restart-store",
+  );
+  assert.equal(
+    effectiveAction("stop-bridge", changed, started),
+    "restart-store",
+  );
 });

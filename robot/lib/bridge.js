@@ -37,7 +37,8 @@ function writeToml(bridge, filePath = BRIDGE_TOML_PATH, store) {
   const toml = bridge.toml?.trim()
     ? bridge.toml
     : renderPreset(bridge.preset, store, bridge.variant);
-  fs.writeFileSync(filePath, toml, "utf8");
+  fs.writeFileSync(filePath, toml, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(filePath, 0o600);
   return filePath;
 }
 

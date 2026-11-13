@@ -43,6 +43,15 @@ test("writeToml writes managed bridge configuration verbatim", () => {
   assert.equal(fs.readFileSync(file, "utf8"), toml);
 });
 
+test("writeToml stores managed bridge configuration privately", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-bridge-toml-"));
+  const file = path.join(dir, "bridge.toml");
+
+  bridge.writeToml({ toml: 'token_api = "secret"\n' }, file);
+
+  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+});
+
 test("renders the MQTT preset with the current local store settings", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-bridge-preset-"));
   const file = path.join(dir, "bridge.toml");

@@ -24,6 +24,8 @@ The ReductStore Pro binary requires glibc 2.38 or newer (Ubuntu 24.04+).
 
 Bridge downloads are verified against pinned SHA-256 checksums. On systems whose glibc is older than ReductStore Pro requires, the download is skipped, the capability still installs, and it reports that the binary is unavailable.
 
+On fresh installations where ROS is not detected, ReductBridge remains disabled until an operator enables it.
+
 ## Uninstalling
 
 Stopping or uninstalling the capability stops ReductStore and ReductBridge.

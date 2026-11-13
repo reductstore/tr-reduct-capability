@@ -16,7 +16,7 @@ const {
   saveConfig,
 } = require("../robot/lib/config");
 
-test("defaults define native store settings and a ROS 2 Jazzy bridge preset", () => {
+test("defaults leave ReductBridge disabled when ROS is not detected", () => {
   const config = defaults();
   assert.match(config.store.apiToken, /^[0-9a-f]{48}$/);
   assert.equal(defaults().store.apiToken, config.store.apiToken);
@@ -26,7 +26,7 @@ test("defaults define native store settings and a ROS 2 Jazzy bridge preset", ()
   assert.equal(config.bridge.variant, "ros2-jazzy");
   assert.equal(config.bridge.preset, "ros2");
   assert.equal(config.bridge.toml, "");
-  assert.equal(config.bridge.enabled, true);
+  assert.equal(config.bridge.enabled, false);
   assert.equal(config.autoStart, true);
 });
 
