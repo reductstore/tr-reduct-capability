@@ -65,9 +65,12 @@ const billingGate = isStandalone
         enqueue(async () => {
           lastBillingToken = null;
           deletePersistedToken();
-          await stopAll({ config, store, bridge });
+          const errors = await stopAll(
+            { config, store, bridge },
+            { onError: (error) => log.warn(error.message) },
+          );
           billingGate.dispose();
-          process.exit(0);
+          process.exit(errors.length ? 1 : 0);
         });
       },
     });
@@ -204,13 +207,13 @@ function onBillingToken(token) {
 
 async function gracefulShutdown(signal) {
   log.info(`${signal} received, stopping native processes`);
-  await stopAll(
+  const errors = await stopAll(
     { config, store, bridge },
     { graceMs: 2000, onError: (error) => log.warn(error.message) },
   );
   mqttSync?.mqtt?.end?.();
   billingGate?.dispose();
-  process.exit(0);
+  process.exit(errors.length ? 1 : 0);
 }
 
 process.once("SIGTERM", () => gracefulShutdown("SIGTERM"));
