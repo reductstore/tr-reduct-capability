@@ -73,6 +73,36 @@ test("restarting ReductStore restarts its enabled bridge after Store is ready", 
   ]);
 });
 
+test("restart prunes persisted managed replications when the Store query fails offline", async () => {
+  const options = dependencies();
+  options.config.store = { httpPort: 8383, replications: [] };
+  options.store.getReplications = async () => {
+    options.events.push("store.getReplications");
+    throw new Error("offline");
+  };
+  options.store.readManagedReplications = () => ["old"];
+  options.store.pruneReplications = async (_, names) => {
+    options.events.push(`store.pruneReplications:${names.join(",")}`);
+    return ["old"];
+  };
+  options.store.writeManagedReplications = (names) => {
+    options.events.push(`store.writeManagedReplications:${names.join(",")}`);
+  };
+
+  const message = await runComponentAction("restart-store", options);
+
+  assert.equal(message, "ReductStore restarted");
+  assert.deepEqual(options.events, [
+    "bridge.stop",
+    "store.getReplications",
+    "store.start",
+    "store.waitUntilAlive",
+    "store.pruneReplications:old",
+    "store.writeManagedReplications:",
+    "bridge.start",
+  ]);
+});
+
 test("stopping ReductStore stops ReductBridge first", async () => {
   const options = dependencies();
 

@@ -2,7 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Client } = require("reduct-js");
 const nativeProcess = require("./process");
-const { STATE_DIR } = require("./config");
+const { RUNTIME_DIR, STATE_DIR } = require("./config");
 
 const STORE_BINARY = path.join(__dirname, "..", "bin", "reductstore");
 
@@ -54,8 +54,39 @@ function buildEnvironment(store, { billingToken } = {}) {
   return env;
 }
 
+function managedReplicationsPath(options = {}) {
+  return (
+    options.managedPath || path.join(STATE_DIR, "managed-replications.json")
+  );
+}
+
+function readManagedReplications(options = {}) {
+  try {
+    const parsed = JSON.parse(
+      fs.readFileSync(managedReplicationsPath(options), "utf8"),
+    );
+    return Array.isArray(parsed)
+      ? parsed.filter((name) => typeof name === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeManagedReplications(names, options = {}) {
+  const filePath = managedReplicationsPath(options);
+  const directory = path.dirname(filePath);
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const tmp = `${filePath}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(names)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  fs.renameSync(tmp, filePath);
+  fs.chmodSync(filePath, 0o600);
+}
 function runtimeDir(store, options = {}) {
-  return options.runtimeDir || STATE_DIR;
+  return options.runtimeDir || RUNTIME_DIR;
 }
 
 function executable(options = {}) {
@@ -183,4 +214,6 @@ module.exports = {
   stop,
   getReplications,
   pruneReplications,
+  readManagedReplications,
+  writeManagedReplications,
 };

@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { BRIDGE_TOML_PATH } = require("./config");
+const { BRIDGE_TOML_PATH, RUNTIME_DIR } = require("./config");
 const nativeProcess = require("./process");
 const { renderPreset } = require("./presets");
 
@@ -25,7 +25,7 @@ function executable(bridge, options = {}) {
 }
 
 function runtimeDir(options = {}) {
-  return options.runtimeDir || path.dirname(BRIDGE_TOML_PATH);
+  return options.runtimeDir || RUNTIME_DIR;
 }
 
 function tomlPath(options = {}) {

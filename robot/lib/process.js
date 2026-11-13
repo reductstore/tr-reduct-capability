@@ -15,11 +15,38 @@ function runtimePaths(runtimeDir, name) {
 
 function readPid(pidPath) {
   try {
-    const pid = Number.parseInt(fs.readFileSync(pidPath, "utf8"), 10);
-    return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
+    const raw = fs.readFileSync(pidPath, "utf8").trim();
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      Number.isSafeInteger(parsed.pid) &&
+      parsed.pid > 0 &&
+      Number.isSafeInteger(parsed.startTime)
+    ) {
+      return { pid: parsed.pid, startTime: parsed.startTime };
+    }
+    return null;
   } catch {
     return null;
   }
+}
+
+function processStartTime(pid) {
+  try {
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
+    return Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19]);
+  } catch {
+    return null;
+  }
+}
+
+function isOwned(record) {
+  return Boolean(
+    record &&
+    isRunning(record.pid) &&
+    record.startTime != null &&
+    record.startTime === processStartTime(record.pid),
+  );
 }
 
 function isRunning(pid) {
@@ -60,8 +87,9 @@ function capLog(logPath, maxBytes = MAX_LOG_BYTES) {
 
 function status(runtimeDir, name) {
   const { logPath, pidPath } = runtimePaths(runtimeDir, name);
-  const pid = readPid(pidPath);
-  const running = isRunning(pid);
+  const record = readPid(pidPath);
+  const pid = record?.pid || null;
+  const running = isOwned(record);
   if (!running && pid) fs.rmSync(pidPath, { force: true });
   const log = readLog(logPath);
   capLog(logPath);
@@ -101,8 +129,9 @@ async function waitForExit(pid, timeoutMs) {
 
 async function stop(runtimeDir, name, { graceMs = 5000, forceMs = 5000 } = {}) {
   const { pidPath } = runtimePaths(runtimeDir, name);
-  const pid = readPid(pidPath);
-  if (!pid || !isRunning(pid)) {
+  const record = readPid(pidPath);
+  const pid = record?.pid;
+  if (!pid || !isOwned(record)) {
     fs.rmSync(pidPath, { force: true });
     return { running: false };
   }
@@ -136,7 +165,11 @@ function start(runtimeDir, name, command, args, env) {
     });
     child.once("spawn", () => {
       fs.closeSync(log);
-      fs.writeFileSync(pidPath, `${child.pid}\n`, "utf8");
+      fs.writeFileSync(
+        pidPath,
+        `${JSON.stringify({ pid: child.pid, startTime: processStartTime(child.pid) })}\n`,
+        "utf8",
+      );
       child.unref();
       resolve({ pid: child.pid, running: true });
     });

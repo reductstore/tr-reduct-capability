@@ -248,6 +248,15 @@ async function boot() {
         );
       }
     }
+    if (!hasBillingEntitlement()) {
+      log.info(
+        "no valid billing entitlement at startup; stopping native processes",
+      );
+      await stopAll(
+        { config, store, bridge },
+        { onError: (error) => log.warn(error.message) },
+      );
+    }
   }
 
   const mqttClient = mqtt.connect(connectUrl, connectOptions);

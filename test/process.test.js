@@ -59,32 +59,98 @@ test("caps an active log without creating a sparse file", async () => {
   }
 });
 
+function startTimeOf(pid) {
+  const stat = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
+  return Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19]);
+}
+
+function killIfRunning(pid) {
+  try {
+    process.kill(-pid, "SIGKILL");
+    return;
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
+}
+
+test("stop signals the process identified by the recorded start time", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-pid-"));
+  const name = "native";
+  const { pidPath } = nativeProcess.runtimePaths(dir, name);
+  const started = await nativeProcess.start(
+    dir,
+    name,
+    process.execPath,
+    ["-e", "setInterval(() => {}, 1000)"],
+    process.env,
+  );
+  const pid = started.pid;
+  fs.writeFileSync(
+    pidPath,
+    `${JSON.stringify({ pid, startTime: startTimeOf(pid) })}\n`,
+  );
+
+  try {
+    await nativeProcess.stop(dir, name, { graceMs: 1000 });
+    assert.throws(() => process.kill(pid, 0), /ESRCH/);
+    assert.equal(fs.existsSync(pidPath), false);
+  } finally {
+    killIfRunning(pid);
+  }
+});
+
+test("stop ignores a PID whose recorded start time no longer matches", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-pid-"));
+  const name = "native";
+  const { pidPath } = nativeProcess.runtimePaths(dir, name);
+  const started = await nativeProcess.start(
+    dir,
+    name,
+    process.execPath,
+    ["-e", "setInterval(() => {}, 1000)"],
+    process.env,
+  );
+  const pid = started.pid;
+  fs.writeFileSync(
+    pidPath,
+    `${JSON.stringify({ pid, startTime: startTimeOf(pid) + 1 })}\n`,
+  );
+
+  try {
+    assert.deepEqual(await nativeProcess.stop(dir, name, { graceMs: 0 }), {
+      running: false,
+    });
+    process.kill(pid, 0);
+    assert.equal(fs.existsSync(pidPath), false);
+  } finally {
+    process.kill(pid, "SIGKILL");
+  }
+});
+
 test("waits for a forced process exit before removing its PID file", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-stop-"));
   const name = "native";
   const { pidPath } = nativeProcess.runtimePaths(dir, name);
-  fs.writeFileSync(pidPath, "1234\n");
-  const kill = process.kill;
-  let alive = true;
-  process.kill = (target, signal) => {
-    if (signal === 0) {
-      if (alive) return;
-      const error = new Error("no such process");
-      error.code = "ESRCH";
-      throw error;
-    }
-    if (target === -1234 && signal === "SIGKILL")
-      setTimeout(() => {
-        alive = false;
-      }, 10);
-  };
+  const started = await nativeProcess.start(
+    dir,
+    name,
+    process.execPath,
+    ["-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"],
+    process.env,
+  );
+  const pid = started.pid;
 
   try {
     await nativeProcess.stop(dir, name, { graceMs: 0 });
-    assert.equal(alive, false);
+    assert.throws(() => process.kill(pid, 0), /ESRCH/);
     assert.equal(fs.existsSync(pidPath), false);
   } finally {
-    process.kill = kill;
+    killIfRunning(pid);
   }
 });
 
@@ -92,20 +158,17 @@ test("keeps its PID file when forced termination times out", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-stop-"));
   const name = "native";
   const { pidPath } = nativeProcess.runtimePaths(dir, name);
-  fs.writeFileSync(pidPath, "1234\n");
+  const started = await nativeProcess.start(
+    dir,
+    name,
+    process.execPath,
+    ["-e", "setInterval(() => {}, 1000)"],
+    process.env,
+  );
+  const pid = started.pid;
   const kill = process.kill;
-  let alive = true;
   process.kill = (target, signal) => {
-    if (signal === 0) {
-      if (alive) return;
-      const error = new Error("no such process");
-      error.code = "ESRCH";
-      throw error;
-    }
-    if (target === -1234 && signal === "SIGKILL")
-      setTimeout(() => {
-        alive = false;
-      }, 20);
+    if (signal === 0) return kill.call(process, target, 0);
   };
 
   try {
@@ -116,6 +179,7 @@ test("keeps its PID file when forced termination times out", async () => {
     assert.equal(fs.existsSync(pidPath), true);
   } finally {
     process.kill = kill;
+    killIfRunning(pid);
   }
 });
 

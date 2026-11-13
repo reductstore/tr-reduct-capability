@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const store = require("../robot/lib/store");
-const { defaults, STATE_DIR } = require("../robot/lib/config");
+const { defaults, RUNTIME_DIR } = require("../robot/lib/config");
 
 test("buildEnvironment configures native ReductStore from its config section", () => {
   const env = store.buildEnvironment(defaults().store);
@@ -70,9 +70,9 @@ test("starts, reports, and stops a detached native process", async () => {
   assert.equal((await store.status(config, processOptions)).error, undefined);
 });
 
-test("store runtime files stay in the state directory regardless of dataPath", () => {
-  assert.equal(store.runtimeDir({ dataPath: "/mnt/disk-a/data" }), STATE_DIR);
-  assert.equal(store.runtimeDir({ dataPath: "/mnt/disk-b/data" }), STATE_DIR);
+test("store runtime files stay outside the package state regardless of dataPath", () => {
+  assert.equal(store.runtimeDir({ dataPath: "/mnt/disk-a/data" }), RUNTIME_DIR);
+  assert.equal(store.runtimeDir({ dataPath: "/mnt/disk-b/data" }), RUNTIME_DIR);
   assert.equal(
     store.runtimeDir(
       { dataPath: "/mnt/disk-a/data" },

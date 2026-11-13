@@ -6,6 +6,7 @@ const path = require("node:path");
 
 const {
   CONFIG_PATH,
+  RUNTIME_DIR,
   STATE_DIR,
   bridgeVariantForReleases,
   capabilityHome,
@@ -53,6 +54,13 @@ test("the default bridge variant follows the robot's ROS release", () => {
 });
 
 test("default configuration is below the capability state directory", () => {
+  assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
+});
+
+test("state and runtime stay outside the package directory during uninstall", () => {
+  const pkgRoot = `${capabilityHome()}${path.sep}`;
+  assert.ok(!STATE_DIR.startsWith(pkgRoot));
+  assert.ok(!RUNTIME_DIR.startsWith(pkgRoot));
   assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
 });
 

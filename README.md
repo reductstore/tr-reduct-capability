@@ -30,4 +30,4 @@ On fresh installations where ROS is not detected, ReductBridge remains disabled 
 
 Stopping or uninstalling the capability stops ReductStore and ReductBridge.
 
-By default ReductStore writes its data inside the capability's state directory. Uninstalling the capability can delete that directory and the data it holds. Back up or replicate anything you need before uninstalling, or set the store data path to a location outside the capability's state directory.
+Capability state, including runtime PID files and ReductStore data, is kept outside the package directory under the Transitive state root. Removing the capability package does not delete it while native processes stop. Uninstalling the Transitive robot agent can delete that state and its data. Back up or replicate anything you need before uninstalling the robot agent, or set the store data path elsewhere.

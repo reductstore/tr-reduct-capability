@@ -12,10 +12,14 @@ function capabilityHome(moduleDir = __dirname, env = process.env) {
 }
 
 const CAPABILITY_HOME = capabilityHome();
-const STATE_DIR = process.env.STATE_DIR || path.join(CAPABILITY_HOME, "state");
+const TRANSITIVE_ROOT = path.join(os.homedir(), ".transitive");
+const STATE_DIR =
+  process.env.STATE_DIR ||
+  path.join(TRANSITIVE_ROOT, "state", "@reductstore-tr", "reductstore");
+const RUNTIME_DIR = process.env.RUNTIME_DIR || path.join(STATE_DIR, "run");
 const CONFIG_PATH =
   process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
-const BRIDGE_TOML_PATH = path.join(STATE_DIR, "bridge.toml");
+const BRIDGE_TOML_PATH = path.join(RUNTIME_DIR, "bridge.toml");
 const BILLING_TOKEN_PATH =
   process.env.BILLING_TOKEN_PATH || path.join(STATE_DIR, "billing-token");
 const API_TOKEN_PATH =
@@ -117,6 +121,7 @@ function saveConfig(current, patch, filePath = CONFIG_PATH) {
 module.exports = {
   CAPABILITY_HOME,
   STATE_DIR,
+  RUNTIME_DIR,
   CONFIG_PATH,
   BRIDGE_TOML_PATH,
   BILLING_TOKEN_PATH,
