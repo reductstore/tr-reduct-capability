@@ -89,7 +89,17 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function stop(runtimeDir, name, { graceMs = 5000 } = {}) {
+async function waitForExit(pid, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (isRunning(pid)) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return false;
+    await sleep(Math.min(50, remaining));
+  }
+  return true;
+}
+
+async function stop(runtimeDir, name, { graceMs = 5000, forceMs = 5000 } = {}) {
   const { pidPath } = runtimePaths(runtimeDir, name);
   const pid = readPid(pidPath);
   if (!pid || !isRunning(pid)) {
@@ -98,11 +108,10 @@ async function stop(runtimeDir, name, { graceMs = 5000 } = {}) {
   }
 
   terminate(pid, "SIGTERM");
-  const deadline = Date.now() + graceMs;
-  while (isRunning(pid) && Date.now() < deadline) await sleep(50);
-  if (isRunning(pid)) {
+  if (!(await waitForExit(pid, graceMs))) {
     terminate(pid, "SIGKILL");
-    while (isRunning(pid)) await sleep(50);
+    if (!(await waitForExit(pid, forceMs)))
+      throw new Error(`process ${pid} did not exit after SIGKILL`);
   }
   fs.rmSync(pidPath, { force: true });
   return { running: false };

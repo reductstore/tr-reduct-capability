@@ -82,17 +82,14 @@ test("stopping ReductStore stops ReductBridge first", async () => {
   assert.deepEqual(options.events, ["bridge.stop", "store.stop"]);
 });
 
-test("stopping ReductStore still stops it when ReductBridge stop fails", async () => {
+test("stopping ReductStore reports a Store stop failure after stopping Bridge", async () => {
   const options = dependencies();
-  options.bridge.stop = async () => {
-    options.events.push("bridge.stop");
-    throw new Error("bridge boom");
+  options.store.stop = async () => {
+    options.events.push("store.stop");
+    throw new Error("store boom");
   };
 
-  assert.equal(
-    await runComponentAction("stop-store", options),
-    "ReductStore stopped",
-  );
+  await assert.rejects(runComponentAction("stop-store", options), /store boom/);
   assert.deepEqual(options.events, ["bridge.stop", "store.stop"]);
 });
 

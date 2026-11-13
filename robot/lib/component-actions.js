@@ -33,16 +33,20 @@ function effectiveAction(action, config, startedStoreConfig) {
 
 async function stopAll({ config, store, bridge }, { graceMs, onError } = {}) {
   const options = graceMs == null ? {} : { graceMs };
+  const errors = [];
   try {
     await bridge.stop(config.bridge, options);
   } catch (error) {
+    errors.push(error);
     onError?.(error);
   }
   try {
     await store.stop(config.store, options);
   } catch (error) {
+    errors.push(error);
     onError?.(error);
   }
+  return errors;
 }
 
 async function runComponentAction(action, options) {
@@ -51,9 +55,11 @@ async function runComponentAction(action, options) {
     case "start-store":
       await startStore(options);
       return "ReductStore started";
-    case "stop-store":
-      await stopAll({ config, store, bridge });
+    case "stop-store": {
+      const errors = await stopAll({ config, store, bridge });
+      if (errors.length) throw errors[0];
       return "ReductStore stopped";
+    }
     case "restart-store":
       await bridge.stop(config.bridge);
       await startStore(options);
