@@ -1,18 +1,39 @@
 import React from "react";
-import { Field, SectionHead } from "./ui";
+import { Field, SectionHead, GrowTextarea, ComponentLog } from "./ui";
 import {
-  BRIDGE_IMAGES,
-  BRIDGE_TEMPLATES,
-  templateForImage,
-  isTemplateToml,
-} from "./bridge-templates";
-import { row, input, btn, hint, sectionStyle } from "./styles";
+  VARIANTS,
+  PRESETS,
+  presetForVariant,
+  renderPreset,
+  isPresetToml,
+} from "./presets";
+import {
+  row,
+  input,
+  select,
+  btn,
+  hint,
+  sectionStyle,
+  barBtn,
+  barPrimary,
+} from "./styles";
 
-export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
+export function StoreSection({
+  cfg,
+  setCfg,
+  dirty,
+  dev,
+  remote,
+  consoleUrl,
+  billingValid,
+  onControl,
+  onApply,
+  onDiscard,
+}) {
   const store = cfg.store;
   const setStore = (k, v) => setCfg({ ...cfg, store: { ...store, [k]: v } });
   const setBucket = (k, v) => setStore("bucket", { ...store.bucket, [k]: v });
-
+  const storeRunning = !!dev.store?.running;
   const env = store.env || [];
   const setEnv = (i, k, v) =>
     setStore(
@@ -29,21 +50,28 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
   return (
     <div style={sectionStyle(dirty)}>
       <SectionHead
-        title="ReductStore, the database on this robot"
+        title="ReductStore"
         href="https://www.reduct.store/docs/configuration/provisioning"
-        dirty={dirty}
-        onDiscard={onDiscard}
-      >
-        Incoming records are stored here in buckets on the robot, configured
-        through provisioning env vars.
-      </SectionHead>
-      <Field label="Image">
-        <input
-          style={input}
-          value={store.image}
-          onChange={(e) => setStore("image", e.target.value)}
-        />
-      </Field>
+      />
+      {consoleUrl && (
+        <a
+          href={consoleUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: "inline-block",
+            fontSize: "13px",
+            color: "#0078d4",
+            textDecoration: "none",
+            border: "1px solid #0078d4",
+            borderRadius: "3px",
+            padding: "4px 10px",
+            marginBottom: "8px",
+          }}
+        >
+          Open ReductStore console ↗
+        </a>
+      )}
       <Field label="HTTP port">
         <input
           style={input}
@@ -73,8 +101,9 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
           onChange={(e) => setBucket("name", e.target.value)}
         />
       </Field>
-      <Field label="Quota type">
+      <Field label="Quota">
         <select
+          style={select}
           value={store.bucket.quotaType}
           onChange={(e) => setBucket("quotaType", e.target.value)}
         >
@@ -82,31 +111,27 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
           <option>FIFO</option>
           <option>HARD</option>
         </select>
-      </Field>
-      {store.bucket.quotaType !== "NONE" && (
-        <Field label="Quota size">
+        {store.bucket.quotaType !== "NONE" && (
           <input
             style={input}
-            placeholder="e.g. 1GB"
+            placeholder="1GB"
             value={store.bucket.quotaSize}
             onChange={(e) => setBucket("quotaSize", e.target.value)}
           />
-        </Field>
-      )}
+        )}
+      </Field>
 
-      <div
-        style={{
-          margin: "10px 0 4px",
-          fontSize: "13px",
-          fontWeight: 600,
-        }}
-      >
-        Extra env vars
+      <ReplicationSection
+        cfg={cfg}
+        setCfg={setCfg}
+        dev={dev}
+        remote={remote}
+        consoleUrl={consoleUrl}
+      />
+
+      <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
+        Extra environment variables (optional)
       </div>
-      <p style={hint}>
-        Any additional ReductStore settings, applied on top of the fields above.
-        If one repeats a setting from above, the value here is used.
-      </p>
       {env.map((e, i) => (
         <div key={i} style={row}>
           <input
@@ -130,19 +155,22 @@ export function StoreSection({ cfg, setCfg, dirty, onDiscard }) {
       <button style={btn} onClick={addEnv}>
         Add variable
       </button>
+      <ComponentLog name="ReductStore" log={dev.store?.log} />
+      <ComponentControls
+        component="store"
+        running={storeRunning}
+        canStop={storeRunning || !!dev.bridge?.running}
+        billingValid={billingValid}
+        dirty={dirty}
+        onControl={onControl}
+        onApply={onApply}
+        onDiscard={onDiscard}
+      />
     </div>
   );
 }
 
-export function ReplicationSection({
-  cfg,
-  setCfg,
-  dev,
-  remote,
-  consoleUrl,
-  dirty,
-  onDiscard,
-}) {
+export function ReplicationSection({ cfg, setCfg, dev, remote, consoleUrl }) {
   const store = cfg.store;
   const reps = store.replications || [];
   const setReps = (v) =>
@@ -164,8 +192,6 @@ export function ReplicationSection({
       },
     ]);
   const removeRep = (i) => setReps(reps.filter((_, j) => j !== i));
-  const repStatus = (name) =>
-    (dev.store?.replications || []).find((t) => t.name === name);
   const orphanReps = (dev.store?.replications || [])
     .map((t) => t.name)
     .filter(
@@ -174,19 +200,27 @@ export function ReplicationSection({
     );
 
   return (
-    <div style={sectionStyle(dirty)}>
-      <SectionHead
-        title="Replication, send new data to a remote ReductStore"
-        href="https://www.reduct.store/docs/guides/data-replication"
-        dirty={dirty}
-        onDiscard={onDiscard}
+    <div style={{ marginTop: "14px" }}>
+      <div
+        style={{
+          margin: "0 0 4px",
+          fontSize: "13px",
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "baseline",
+          gap: "8px",
+        }}
       >
-        As records are written to a local bucket, they are also sent to a remote
-        or cloud ReductStore. It only adds new records, never changing or
-        deleting existing data. Optionally send only the records that match a
-        "when" filter. Tasks are provisioned on the store, so changes apply on
-        Apply &amp; Restart.
-      </SectionHead>
+        Replication
+        <a
+          href="https://www.reduct.store/docs/guides/data-replication"
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontSize: "12px", fontWeight: 400, color: "#0078d4" }}
+        >
+          docs
+        </a>
+      </div>
       {reps.map((r, i) => (
         <div
           key={i}
@@ -243,7 +277,7 @@ export function ReplicationSection({
           </Field>
           <Field label="Mode">
             <select
-              style={input}
+              style={select}
               value={r.mode || "enabled"}
               onChange={(e) => setRep(i, "mode", e.target.value)}
             >
@@ -256,36 +290,13 @@ export function ReplicationSection({
             <label style={{ fontSize: "13px" }}>
               Filter, "when" (optional)
             </label>
-            <textarea
-              style={{
-                width: "100%",
-                minHeight: "70px",
-                fontFamily: "monospace",
-                fontSize: "12px",
-              }}
-              placeholder='JSON condition, e.g. {"&temperature": {"$gt": 10}}'
+            <GrowTextarea
               value={r.when || ""}
               onChange={(e) => setRep(i, "when", e.target.value)}
+              placeholder='JSON condition, e.g. {"&temperature": {"$gt": 10}}'
+              minRows={2}
             />
-            <p style={{ ...hint, margin: "2px 0 0" }}>
-              Only replicate records matching this condition. Leave empty to
-              replicate everything.
-            </p>
           </div>
-          {repStatus(r.name) && (
-            <p style={hint}>
-              on device:{" "}
-              <b>
-                {repStatus(r.name).is_provisioned
-                  ? "provisioned"
-                  : "unprovisioned"}
-              </b>
-              {" · "}
-              {repStatus(r.name).is_active ? "active" : "inactive"}
-              {" · pending: "}
-              {repStatus(r.name).pending_records}
-            </p>
-          )}
           <button style={btn} onClick={() => removeRep(i)}>
             Remove task
           </button>
@@ -315,7 +326,16 @@ export function ReplicationSection({
   );
 }
 
-export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
+export function BridgeSection({
+  cfg,
+  setCfg,
+  dirty,
+  dev,
+  billingValid,
+  onControl,
+  onApply,
+  onDiscard,
+}) {
   const bridge = cfg.bridge;
   const setBridge = (k, v) => setCfg({ ...cfg, bridge: { ...bridge, [k]: v } });
 
@@ -332,142 +352,101 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
       env.filter((_, j) => j !== i),
     );
 
-  const mounts = bridge.mounts || [];
-  const setMount = (i, v) =>
-    setBridge(
-      "mounts",
-      mounts.map((m, j) => (j === i ? v : m)),
-    );
-  const addMount = () => setBridge("mounts", [...mounts, ""]);
-  const removeMount = (i) =>
-    setBridge(
-      "mounts",
-      mounts.filter((_, j) => j !== i),
-    );
-
-  const imageKnown = BRIDGE_IMAGES.some((im) => im.value === bridge.image);
-  const isRos2 = /ros2/i.test(bridge.image || "");
-
-  // Swap the template too when the TOML is still an unedited template.
-  const changeImage = (image) => {
-    const tmpl = templateForImage(image);
-    const next = { ...bridge, image };
-    if (tmpl && isTemplateToml(bridge.toml, cfg.store, bridge.image))
-      next.toml = tmpl.build(cfg.store, image);
-    setCfg({ ...cfg, bridge: next });
+  // Switching variant also swaps the preset, and re-renders the TOML only when
+  // the operator has not hand-edited it.
+  const changeVariant = (variant) => {
+    const preset = presetForVariant(variant);
+    const unedited = isPresetToml(bridge.toml, cfg.store, bridge.variant);
+    let env = bridge.env || [];
+    const isRos2 = variant.startsWith("ros2");
+    if (isRos2 && !env.some((e) => e.key === "ROS_DOMAIN_ID")) {
+      env = [...env, { key: "ROS_DOMAIN_ID", value: "0" }];
+    } else if (!isRos2) {
+      env = env.filter((e) => e.key !== "ROS_DOMAIN_ID");
+    }
+    setCfg({
+      ...cfg,
+      bridge: {
+        ...bridge,
+        variant,
+        preset,
+        env,
+        toml: unedited ? "" : bridge.toml,
+      },
+    });
   };
-  const loadTemplate = (label) => {
-    const tmpl = BRIDGE_TEMPLATES.find((t) => t.label === label);
-    if (tmpl) setBridge("toml", tmpl.build(cfg.store, bridge.image));
-  };
+  const rendered = renderPreset(bridge.preset, cfg.store, bridge.variant);
+
+  if (!bridge.enabled) {
+    return (
+      <div style={sectionStyle(dirty)}>
+        <SectionHead
+          title="ReductBridge"
+          href="https://www.reduct.store/docs/reduct-bridge"
+        />
+        <button
+          style={barPrimary(billingValid)}
+          disabled={!billingValid}
+          onClick={() =>
+            onApply("start-bridge", {
+              ...cfg,
+              bridge: { ...bridge, enabled: true },
+            })
+          }
+        >
+          Enable ReductBridge
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={sectionStyle(dirty)}>
       <SectionHead
-        title="ReductBridge, record data into the store"
+        title="ReductBridge"
         href="https://www.reduct.store/docs/reduct-bridge"
-        dirty={dirty}
-        onDiscard={onDiscard}
-      >
-        Writes incoming data into the local ReductStore. Configured with the
-        TOML below.
-      </SectionHead>
-      <Field label="Enabled">
-        <input
-          type="checkbox"
-          checked={!!bridge.enabled}
-          onChange={(e) => setBridge("enabled", e.target.checked)}
-        />
-      </Field>
-      <Field label="Image family">
+      />
+      <Field label="Variant">
         <select
-          style={input}
-          value={imageKnown ? bridge.image : ""}
-          onChange={(e) => changeImage(e.target.value)}
+          style={select}
+          value={bridge.variant}
+          onChange={(e) => changeVariant(e.target.value)}
         >
-          {!imageKnown && (
-            <option value="" disabled>
-              Custom (see tag below)
-            </option>
-          )}
-          {BRIDGE_IMAGES.map((im) => (
-            <option key={im.value} value={im.value}>
-              {im.label}
+          {VARIANTS.map((v) => (
+            <option key={v.value} value={v.value}>
+              {v.label}
             </option>
           ))}
         </select>
       </Field>
-      <Field label="Image tag">
-        <input
-          style={input}
-          placeholder="reduct/bridge:tag"
-          value={bridge.image}
-          onChange={(e) => setBridge("image", e.target.value)}
-        />
-      </Field>
-      {isRos2 && (
-        <Field label="ROS_DOMAIN_ID">
-          <input
-            style={input}
-            type="number"
-            value={bridge.rosDomainId ?? ""}
-            onChange={(e) =>
-              setBridge(
-                "rosDomainId",
-                e.target.value === "" ? "" : Number(e.target.value),
-              )
-            }
-          />
+      {bridge.variant === "iot" && (
+        <Field label="Protocol">
+          <select
+            style={select}
+            value={bridge.preset}
+            onChange={(e) => setBridge("preset", e.target.value)}
+          >
+            {PRESETS.filter((p) =>
+              ["mqtt", "http", "shell"].includes(p.value),
+            ).map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
         </Field>
       )}
-      <div
-        style={{
-          margin: "10px 0 4px",
-          fontSize: "13px",
-          fontWeight: 600,
-        }}
-      >
-        Extra mounts (host dirs)
-      </div>
-      <p style={hint}>
-        Optional volume mounts. Host directories mounted read only into the
-        container at the same path, for example a ROS 2 workspace with custom
-        message schemas the TOML references.
-      </p>
-      {mounts.map((m, i) => (
-        <div key={i} style={row}>
-          <input
-            style={input}
-            placeholder="/home/user/ros2_ws/install"
-            value={m || ""}
-            onChange={(ev) => setMount(i, ev.target.value)}
-          />
-          <button style={btn} onClick={() => removeMount(i)}>
-            ×
-          </button>
-        </div>
-      ))}
-      <button style={btn} onClick={addMount}>
-        Add mount
-      </button>
 
-      <div
-        style={{
-          margin: "10px 0 4px",
-          fontSize: "13px",
-          fontWeight: 600,
-        }}
-      >
-        Extra env vars
+      <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
+        Extra environment variables (optional)
       </div>
-      <p style={hint}>
-        Optional. Extra environment variables for the bridge container.
-      </p>
       {env.map((e, i) => (
         <div key={i} style={row}>
           <input
             style={{ ...input, maxWidth: "220px" }}
-            placeholder="RUST_LOG"
+            placeholder={
+              bridge.variant.startsWith("ros2") ? "ROS_DOMAIN_ID" : "RUST_LOG"
+            }
             value={e.key || ""}
             onChange={(ev) => setEnv(i, "key", ev.target.value)}
           />
@@ -488,41 +467,104 @@ export function BridgeSection({ cfg, setCfg, dirty, onDiscard }) {
       </button>
 
       <div style={{ margin: "6px 0" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "6px",
-          }}
+        <label
+          style={{ fontSize: "13px", display: "block", marginBottom: "6px" }}
         >
-          <label style={{ fontSize: "13px" }}>config.toml</label>
-          <select
-            style={{ fontSize: "12px", padding: "2px 4px" }}
-            value=""
-            onChange={(e) => {
-              if (e.target.value) loadTemplate(e.target.value);
-            }}
-          >
-            <option value="">Load template…</option>
-            {BRIDGE_TEMPLATES.map((t) => (
-              <option key={t.label} value={t.label}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <textarea
-          style={{
-            width: "100%",
-            minHeight: "420px",
-            fontFamily: "monospace",
-            fontSize: "12px",
-          }}
-          value={bridge.toml}
-          onChange={(e) => setBridge("toml", e.target.value)}
+          config.toml
+        </label>
+        <GrowTextarea
+          value={bridge.toml || rendered}
+          onChange={(e) =>
+            setBridge("toml", e.target.value === rendered ? "" : e.target.value)
+          }
+          placeholder={`# empty → uses the ${bridge.preset} preset`}
+          minRows={3}
         />
       </div>
+      <ComponentLog name="ReductBridge" log={dev.bridge?.log} />
+      <ComponentControls
+        component="bridge"
+        running={!!dev.bridge?.running}
+        canStop={!!dev.bridge?.running}
+        billingValid={billingValid}
+        dirty={dirty}
+        onControl={onControl}
+        onApply={onApply}
+        onDiscard={onDiscard}
+        disable={
+          <button
+            style={barBtn(true)}
+            onClick={() =>
+              onApply("stop-bridge", {
+                ...cfg,
+                bridge: { ...bridge, enabled: false },
+              })
+            }
+          >
+            Disable ReductBridge
+          </button>
+        }
+      />
+    </div>
+  );
+}
+function ComponentControls({
+  component,
+  running,
+  canStop,
+  billingValid,
+  dirty,
+  onControl,
+  onApply,
+  onDiscard,
+  disable,
+}) {
+  const title = component === "store" ? "ReductStore" : "ReductBridge";
+  return (
+    <div style={{ marginTop: "10px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+        <button
+          style={barBtn(billingValid && !running)}
+          disabled={!billingValid || running}
+          onClick={() => onControl(`start-${component}`)}
+        >
+          Start
+        </button>
+        <button
+          style={barBtn(canStop)}
+          disabled={!canStop}
+          onClick={() => onControl(`stop-${component}`)}
+        >
+          Stop
+        </button>
+        <button
+          style={barBtn(billingValid)}
+          disabled={!billingValid}
+          onClick={() => onControl(`restart-${component}`)}
+        >
+          Restart
+        </button>
+        {disable}
+      </div>
+      {dirty && (
+        <div style={{ marginTop: "6px" }}>
+          <div
+            style={{ fontSize: "13px", color: "#b06000", marginBottom: "4px" }}
+          >
+            Unsaved changes
+          </div>
+          <button
+            style={barPrimary(billingValid)}
+            disabled={!billingValid}
+            onClick={() => onApply(`restart-${component}`)}
+          >
+            Apply &amp; restart {title}
+          </button>
+          <button style={barBtn(true)} onClick={onDiscard}>
+            Discard
+          </button>
+        </div>
+      )}
     </div>
   );
 }

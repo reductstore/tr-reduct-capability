@@ -1,38 +1,47 @@
 # ReductStore
 
-Records your robot's data on the robot itself and syncs it to a central
-[ReductStore](https://www.reduct.store/). It runs two Docker containers, managed
-from the portal:
+Record robot data on each robot and replicate it to a central store, built on [ReductStore](https://www.reduct.store/) Pro. Every robot keeps a local time-series store that survives intermittent connectivity, and new records replicate to the cloud or a central server for the whole fleet.
 
-- **ReductStore**: a time-series object store that keeps data on the robot with
-  per-bucket size limits.
-- **ReductBridge**: ingests data from the robot (ROS 2, ROS 1, or IoT sources
-  such as MQTT, HTTP, and shell commands) into the store.
+![ReductStore capability data flow: ReductBridge feeds a local FIFO ReductStore Pro bucket on each robot, which replicates new records to a central ReductStore queried through the API and SDK](docs/architecture.svg)
 
-## Features
+## What it does
 
-- Start, stop, and restart both containers from the portal.
-- Configure the store: image, HTTP port, API token, and bucket (name, quota
-  type, size).
-- Replicate data to a central ReductStore.
-- Pick a data source and edit its bridge configuration in the portal.
-- Fleet view: per-organization running / stopped / error counts, and how many
-  stores and bridges are up.
+- Runs a local **ReductStore Pro** instance on the robot: a time-series store with configurable buckets, a **FIFO quota**, data directory, HTTP port, and API token. When a bucket reaches its quota, the oldest records are dropped, so recording never blocks and the disk never fills.
+- Optionally runs **ReductBridge** to record ROS 2, MQTT, HTTP, shell-command, and other IoT data into the store.
+- **Replicates** new records to a remote or central ReductStore. Replication is append-only and resumes automatically after a disconnect.
+- Reports store, Bridge, and replication status in the Transitive portal.
 
-## Prerequisites
+## Why it is robust for a fleet
 
-- Docker installed on the robot.
-- The data source you want to record, reachable from the robot: a running ROS
-  graph, an MQTT broker, or an HTTP endpoint. ROS ingestion uses host
-  networking.
+Each robot owns its data. Recording continues whether or not the robot is online, and the FIFO quota bounds disk use instead of failing when storage is full. When connectivity returns, replication catches up on its own. Across a fleet, every robot records independently and streams to one central store, so a single robot or link outage never loses the data the other robots keep producing. The quota is the one tradeoff: if a robot stays offline longer than its bucket holds, the oldest unreplicated records are evicted to keep the newest.
 
-## Configuration
+## Query and transform
 
-Everything is configured from the device view in the portal.
+Query a robot's store directly, or the central store, through the [ReductStore API and SDKs](https://www.reduct.store/docs/api) using the configured HTTP endpoint and API token.
 
-**Store**: set the image, HTTP port, API token, and bucket (name, quota type,
-size), and define replication tasks to sync data to a central ReductStore.
+ReductStore **Pro** adds a Rust/WASM query engine: turn raw ROS messages into structured, columnar records, filter by label or content, and fuse multiple entries at query time, so you read tables instead of parsing blobs.
 
-**Bridge**: disabled by default. Pick an image for your data source and edit
-its TOML configuration. See the
-[ReductBridge docs](https://www.reduct.store/docs/reduct-bridge).
+## Configure
+
+Set the store, Bridge, and replication tasks from the capability's device page in the Transitive portal.
+
+## Platform support
+
+Native binaries download automatically when the capability is installed. Versions are pinned: ReductStore Pro `v1.21.5-0` and ReductBridge `v0.5.7`.
+
+The ReductStore Pro binary requires glibc 2.38 or newer (Ubuntu 24.04+).
+
+| Component       | Linux x64 | Linux arm64 |
+| --------------- | --------- | ----------- |
+| ReductStore Pro | Supported | Supported   |
+| ReductBridge    | Supported | Supported   |
+
+Bridge downloads are verified against pinned SHA-256 checksums. On systems whose glibc is older than ReductStore Pro requires, the download is skipped, the capability still installs, and it reports that the binary is unavailable.
+
+On fresh installations where ROS is not detected, ReductBridge remains disabled until an operator enables it.
+
+## Uninstalling
+
+Stopping or uninstalling the capability stops ReductStore and ReductBridge.
+
+Capability state, including runtime PID files and ReductStore data, is stored in the installed package directory, so it survives capability restarts and robot reboots. Uninstalling the capability deletes that directory and the state it holds. Back up or replicate anything you need before uninstalling, or set the store data path to external storage.
