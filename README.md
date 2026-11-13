@@ -1,15 +1,29 @@
 # ReductStore
 
-Save robot data locally with [ReductStore](https://www.reduct.store/). Configure a store on each robot, record data into it, replicate selected data to another store, and query it through the standard ReductStore API.
+Record robot data on each robot and replicate it to a central store, built on [ReductStore](https://www.reduct.store/) Pro. Every robot keeps a local time-series store that survives intermittent connectivity, and new records replicate to the cloud or a central server for the whole fleet.
+
+![ReductStore capability data flow: ReductBridge feeds a local FIFO ReductStore Pro bucket on each robot, which replicates new records to a central ReductStore queried through the API and SDK](docs/architecture.svg)
 
 ## What it does
 
-- Runs a local ReductStore Pro instance with a configurable bucket, quota, data directory, HTTP port, and API token.
-- Optionally runs ReductBridge to record ROS, MQTT, HTTP, shell-command, and IoT data.
-- Replicates new records to a remote or cloud ReductStore when the robot has connectivity.
-- Shows store, Bridge, and replication status in the Transitive portal.
+- Runs a local **ReductStore Pro** instance on the robot: a time-series store with configurable buckets, a **FIFO quota**, data directory, HTTP port, and API token. When a bucket reaches its quota, the oldest records are dropped, so recording never blocks and the disk never fills.
+- Optionally runs **ReductBridge** to record ROS 2, MQTT, HTTP, shell-command, and other IoT data into the store.
+- **Replicates** new records to a remote or central ReductStore. Replication is append-only and resumes automatically after a disconnect.
+- Reports store, Bridge, and replication status in the Transitive portal.
 
-Configure the store, Bridge, and replication tasks from the capability's device page in the Transitive portal. Use the configured HTTP endpoint and API token to query stored data with the [ReductStore API and SDKs](https://www.reduct.store/docs/api).
+## Why it is robust for a fleet
+
+Each robot owns its data. Recording continues whether or not the robot is online, and the FIFO quota bounds disk use instead of failing when storage is full. When connectivity returns, replication catches up on its own. Across a fleet, every robot records independently and streams to one central store, so a single robot or link outage never loses the data the other robots keep producing. The quota is the one tradeoff: if a robot stays offline longer than its bucket holds, the oldest unreplicated records are evicted to keep the newest.
+
+## Query and transform
+
+Query a robot's store directly, or the central store, through the [ReductStore API and SDKs](https://www.reduct.store/docs/api) using the configured HTTP endpoint and API token.
+
+ReductStore **Pro** adds a Rust/WASM query engine: turn raw ROS messages into structured, columnar records, filter by label or content, and fuse multiple entries at query time, so you read tables instead of parsing blobs.
+
+## Configure
+
+Set the store, Bridge, and replication tasks from the capability's device page in the Transitive portal.
 
 ## Platform support
 
