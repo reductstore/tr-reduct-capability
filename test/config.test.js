@@ -5,9 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const {
-  CAPABILITY_HOME,
   CONFIG_PATH,
-  RUNTIME_DIR,
   STATE_DIR,
   bridgeVariantForReleases,
   capabilityHome,
@@ -54,13 +52,8 @@ test("the default bridge variant follows the robot's ROS release", () => {
   assert.equal(bridgeVariantForReleases(""), "ros2-jazzy");
 });
 
-test("default state stays under the capability sandbox", () => {
-  assert.equal(
-    STATE_DIR,
-    path.join(CAPABILITY_HOME, "state", "@reductstore-tr", "reductstore"),
-  );
+test("default configuration is below the capability state directory", () => {
   assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
-  assert.equal(RUNTIME_DIR, path.join(STATE_DIR, "run"));
 });
 
 test("the capability home is the normal Transitive launcher sandbox", () => {

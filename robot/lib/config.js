@@ -15,7 +15,13 @@ const CAPABILITY_HOME = capabilityHome();
 
 const STATE_DIR =
   process.env.STATE_DIR ||
-  path.join(CAPABILITY_HOME, "state", "@reductstore-tr", "reductstore");
+  path.join(
+    os.homedir(),
+    ".transitive",
+    "state",
+    "@reductstore-tr",
+    "reductstore",
+  );
 const RUNTIME_DIR = process.env.RUNTIME_DIR || path.join(STATE_DIR, "run");
 const CONFIG_PATH =
   process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");

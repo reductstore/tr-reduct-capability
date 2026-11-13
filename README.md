@@ -30,4 +30,4 @@ On fresh installations where ROS is not detected, ReductBridge remains disabled 
 
 Stopping or uninstalling the capability stops ReductStore and ReductBridge.
 
-Capability state, including runtime PID files and ReductStore data, is kept outside the package directory in the persistent Transitive capability sandbox. Removing the capability package does not delete it while native processes stop. Uninstalling the Transitive robot agent can delete that state and its data. Back up or replicate anything you need before uninstalling the robot agent, or set the store data path elsewhere.
+Transitive's current sandbox does not expose a persistent host-backed capability-state mount. Do not rely on capability configuration, tokens, runtime state, or the default ReductStore data path to survive capability removal. Set the store data path to external storage and back up or replicate anything you need before removal.
