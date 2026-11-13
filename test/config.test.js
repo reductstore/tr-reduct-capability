@@ -9,6 +9,7 @@ const {
   RUNTIME_DIR,
   STATE_DIR,
   bridgeVariantForReleases,
+  transitiveRoot,
   capabilityHome,
   defaults,
   deepMerge,
@@ -62,6 +63,18 @@ test("state and runtime stay outside the package directory during uninstall", ()
   assert.ok(!STATE_DIR.startsWith(pkgRoot));
   assert.ok(!RUNTIME_DIR.startsWith(pkgRoot));
   assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
+});
+
+test("derives persistent state from the Transitive package sandbox", () => {
+  const sandbox = "/home/transitive/.transitive";
+  const packageHome = path.join(
+    sandbox,
+    "packages",
+    "@reductstore-tr",
+    "reductstore",
+  );
+
+  assert.equal(transitiveRoot(packageHome), sandbox);
 });
 
 test("the capability home is the persistent package root above node_modules", () => {

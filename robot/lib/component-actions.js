@@ -10,8 +10,17 @@ async function startStore({ config, store, billingToken }) {
   if (!(await store.waitUntilAlive(config.store))) {
     throw new Error("ReductStore did not become ready in time");
   }
+  const provisioned = (
+    await store.getReplications(config.store).catch(() => [])
+  )
+    .filter((task) => task.is_provisioned)
+    .map((task) => task.name);
   const removed = (await store.pruneReplications(config.store, managed)) || [];
-  store.writeManagedReplications?.(managed.filter((n) => !removed.includes(n)));
+  store.writeManagedReplications?.(
+    [...new Set([...managed, ...provisioned])].filter(
+      (name) => !removed.includes(name),
+    ),
+  );
 }
 
 async function ensureStoreReady({ config, store }) {

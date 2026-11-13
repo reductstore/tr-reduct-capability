@@ -68,6 +68,7 @@ test("restarting ReductStore restarts its enabled bridge after Store is ready", 
     "store.getReplications",
     "store.start",
     "store.waitUntilAlive",
+    "store.getReplications",
     "store.pruneReplications:old",
     "bridge.start",
   ]);
@@ -97,8 +98,75 @@ test("restart prunes persisted managed replications when the Store query fails o
     "store.getReplications",
     "store.start",
     "store.waitUntilAlive",
+    "store.getReplications",
     "store.pruneReplications:old",
     "store.writeManagedReplications:",
+    "bridge.start",
+  ]);
+});
+
+test("restart tracks replications provisioned during Store startup", async () => {
+  const options = dependencies();
+  options.config.store = {
+    httpPort: 8383,
+    replications: [{ name: "new" }],
+  };
+  let calls = 0;
+  options.store.getReplications = async () => {
+    options.events.push("store.getReplications");
+    return calls++ === 0 ? [] : [{ name: "new", is_provisioned: true }];
+  };
+  options.store.readManagedReplications = () => [];
+  options.store.pruneReplications = async (_, names) => {
+    options.events.push(`store.pruneReplications:${names.join(",")}`);
+    return [];
+  };
+  options.store.writeManagedReplications = (names) => {
+    options.events.push(`store.writeManagedReplications:${names.join(",")}`);
+  };
+
+  await runComponentAction("restart-store", options);
+
+  assert.deepEqual(options.events, [
+    "bridge.stop",
+    "store.getReplications",
+    "store.start",
+    "store.waitUntilAlive",
+    "store.getReplications",
+    "store.pruneReplications:",
+    "store.writeManagedReplications:new",
+    "bridge.start",
+  ]);
+});
+
+test("restart retains a replication after its deletion fails", async () => {
+  const options = dependencies();
+  options.config.store = { httpPort: 8383, replications: [] };
+  let calls = 0;
+  options.store.getReplications = async () => {
+    options.events.push("store.getReplications");
+    if (calls++ === 0) throw new Error("offline");
+    return [{ name: "old", is_provisioned: true }];
+  };
+  options.store.readManagedReplications = () => ["old"];
+  options.store.pruneReplications = async (_, names) => {
+    options.events.push(`store.pruneReplications:${names.join(",")}`);
+    return [];
+  };
+  options.store.writeManagedReplications = (names) => {
+    options.events.push(`store.writeManagedReplications:${names.join(",")}`);
+  };
+
+  await runComponentAction("restart-store", options);
+
+  assert.deepEqual(options.events, [
+    "bridge.stop",
+    "store.getReplications",
+    "store.start",
+    "store.waitUntilAlive",
+    "store.getReplications",
+    "store.pruneReplications:old",
+    "store.writeManagedReplications:old",
     "bridge.start",
   ]);
 });
