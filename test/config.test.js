@@ -5,11 +5,11 @@ const os = require("node:os");
 const path = require("node:path");
 
 const {
+  CAPABILITY_HOME,
   CONFIG_PATH,
   RUNTIME_DIR,
   STATE_DIR,
   bridgeVariantForReleases,
-  transitiveRoot,
   capabilityHome,
   defaults,
   deepMerge,
@@ -54,30 +54,16 @@ test("the default bridge variant follows the robot's ROS release", () => {
   assert.equal(bridgeVariantForReleases(""), "ros2-jazzy");
 });
 
-test("default configuration is below the capability state directory", () => {
-  assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
-});
-
-test("state and runtime stay outside the package directory during uninstall", () => {
-  const pkgRoot = `${capabilityHome()}${path.sep}`;
-  assert.ok(!STATE_DIR.startsWith(pkgRoot));
-  assert.ok(!RUNTIME_DIR.startsWith(pkgRoot));
-  assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
-});
-
-test("derives persistent state from the Transitive package sandbox", () => {
-  const sandbox = "/home/transitive/.transitive";
-  const packageHome = path.join(
-    sandbox,
-    "packages",
-    "@reductstore-tr",
-    "reductstore",
+test("default state stays under the capability sandbox", () => {
+  assert.equal(
+    STATE_DIR,
+    path.join(CAPABILITY_HOME, "state", "@reductstore-tr", "reductstore"),
   );
-
-  assert.equal(transitiveRoot(packageHome), sandbox);
+  assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
+  assert.equal(RUNTIME_DIR, path.join(STATE_DIR, "run"));
 });
 
-test("the capability home is the persistent package root above node_modules", () => {
+test("the capability home is the normal Transitive launcher sandbox", () => {
   assert.equal(
     capabilityHome(
       "/home/transitive/node_modules/@reductstore-tr/reductstore/robot/lib",

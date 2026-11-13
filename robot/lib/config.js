@@ -13,21 +13,9 @@ function capabilityHome(moduleDir = __dirname, env = process.env) {
 
 const CAPABILITY_HOME = capabilityHome();
 
-function transitiveRoot(
-  capabilityHomePath = CAPABILITY_HOME,
-  home = os.homedir(),
-) {
-  const marker = `${path.sep}packages${path.sep}`;
-  const index = capabilityHomePath.indexOf(marker);
-  return index >= 0
-    ? capabilityHomePath.slice(0, index)
-    : path.join(home, ".transitive");
-}
-
-const TRANSITIVE_ROOT = transitiveRoot();
 const STATE_DIR =
   process.env.STATE_DIR ||
-  path.join(TRANSITIVE_ROOT, "state", "@reductstore-tr", "reductstore");
+  path.join(CAPABILITY_HOME, "state", "@reductstore-tr", "reductstore");
 const RUNTIME_DIR = process.env.RUNTIME_DIR || path.join(STATE_DIR, "run");
 const CONFIG_PATH =
   process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
@@ -140,7 +128,6 @@ module.exports = {
   API_TOKEN_PATH,
   readOrCreateApiToken,
   capabilityHome,
-  transitiveRoot,
   bridgeVariantForReleases,
   defaults,
   deepMerge,
