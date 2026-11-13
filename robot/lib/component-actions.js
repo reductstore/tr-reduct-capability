@@ -31,6 +31,20 @@ function effectiveAction(action, config, startedStoreConfig) {
   return action;
 }
 
+async function stopAll({ config, store, bridge }, { graceMs, onError } = {}) {
+  const options = graceMs == null ? {} : { graceMs };
+  try {
+    await bridge.stop(config.bridge, options);
+  } catch (error) {
+    onError?.(error);
+  }
+  try {
+    await store.stop(config.store, options);
+  } catch (error) {
+    onError?.(error);
+  }
+}
+
 async function runComponentAction(action, options) {
   const { config, store, bridge } = options;
   switch (action) {
@@ -67,4 +81,9 @@ async function runComponentAction(action, options) {
   }
 }
 
-module.exports = { requiresBilling, runComponentAction, effectiveAction };
+module.exports = {
+  requiresBilling,
+  runComponentAction,
+  effectiveAction,
+  stopAll,
+};

@@ -19,6 +19,7 @@ const {
   effectiveAction,
   requiresBilling,
   runComponentAction,
+  stopAll,
 } = require("./lib/component-actions");
 
 const log = getLogger("reductstore-robot");
@@ -64,8 +65,7 @@ const billingGate = isStandalone
         enqueue(async () => {
           lastBillingToken = null;
           deletePersistedToken();
-          await bridge.stop(config.bridge).catch(() => {});
-          await store.stop(config.store).catch(() => {});
+          await stopAll({ config, store, bridge });
           billingGate.dispose();
           process.exit(0);
         });
@@ -204,12 +204,10 @@ function onBillingToken(token) {
 
 async function gracefulShutdown(signal) {
   log.info(`${signal} received, stopping native processes`);
-  try {
-    await bridge.stop(config.bridge, { graceMs: 2000 });
-    await store.stop(config.store, { graceMs: 2000 });
-  } catch (error) {
-    log.warn(error.message);
-  }
+  await stopAll(
+    { config, store, bridge },
+    { graceMs: 2000, onError: (error) => log.warn(error.message) },
+  );
   mqttSync?.mqtt?.end?.();
   billingGate?.dispose();
   process.exit(0);
@@ -235,6 +233,20 @@ async function boot() {
     };
   }
 
+  if (!isStandalone) {
+    const persisted = loadPersistedToken();
+    if (persisted) {
+      if (billingGate.update(persisted).valid) {
+        lastBillingToken = persisted;
+      } else {
+        deletePersistedToken();
+        log.info(
+          "persisted billing token is no longer valid, waiting for update",
+        );
+      }
+    }
+  }
+
   const mqttClient = mqtt.connect(connectUrl, connectOptions);
   mqttClient.on("error", (error) => log.error(error.message));
   mqttClient.once("connect", async () => {
@@ -252,19 +264,6 @@ async function boot() {
     mqttSync.data.subscribePathFlat("/config", onConfig);
     if (!isStandalone) {
       mqttSync.data.subscribePathFlat("/billing/token", onBillingToken);
-
-      const persisted = loadPersistedToken();
-      if (persisted) {
-        const result = billingGate.update(persisted);
-        if (result.valid) {
-          lastBillingToken = persisted;
-        } else {
-          deletePersistedToken();
-          log.info(
-            "persisted billing token is no longer valid, waiting for update",
-          );
-        }
-      }
     }
 
     publishDetails();

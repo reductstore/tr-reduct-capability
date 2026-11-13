@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const store = require("../robot/lib/store");
-const { defaults } = require("../robot/lib/config");
+const { defaults, STATE_DIR } = require("../robot/lib/config");
 
 test("buildEnvironment configures native ReductStore from its config section", () => {
   const env = store.buildEnvironment(defaults().store);
@@ -66,6 +66,18 @@ test("starts, reports, and stops a detached native process", async () => {
   assert.equal((await store.status(config, processOptions)).running, true);
   await store.stop(config, processOptions);
   assert.equal((await store.status(config, processOptions)).running, false);
+});
+
+test("store runtime files stay in the state directory regardless of dataPath", () => {
+  assert.equal(store.runtimeDir({ dataPath: "/mnt/disk-a/data" }), STATE_DIR);
+  assert.equal(store.runtimeDir({ dataPath: "/mnt/disk-b/data" }), STATE_DIR);
+  assert.equal(
+    store.runtimeDir(
+      { dataPath: "/mnt/disk-a/data" },
+      { runtimeDir: "/custom/runtime" },
+    ),
+    "/custom/runtime",
+  );
 });
 
 test("reports native process errors from its log", async () => {

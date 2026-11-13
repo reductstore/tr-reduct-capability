@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   runComponentAction,
   effectiveAction,
+  stopAll,
 } = require("../robot/lib/component-actions");
 
 function dependencies({
@@ -89,6 +90,30 @@ test("starting ReductBridge requires a live ReductStore", async () => {
     /ReductStore must be running before starting ReductBridge/,
   );
   assert.deepEqual(options.events, ["store.status", "store.alive"]);
+});
+
+test("stopAll stops the Store even when stopping the Bridge fails", async () => {
+  const calls = [];
+  const errors = [];
+  const options = {
+    config: { store: {}, bridge: {} },
+    store: {
+      async stop() {
+        calls.push("store.stop");
+      },
+    },
+    bridge: {
+      async stop() {
+        calls.push("bridge.stop");
+        throw new Error("bridge boom");
+      },
+    },
+  };
+
+  await stopAll(options, { onError: (error) => errors.push(error.message) });
+
+  assert.deepEqual(calls, ["bridge.stop", "store.stop"]);
+  assert.deepEqual(errors, ["bridge boom"]);
 });
 
 test("applying ReductBridge changes restarts the Store when its settings also changed", () => {

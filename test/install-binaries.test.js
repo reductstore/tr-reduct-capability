@@ -72,7 +72,7 @@ test("exposes the complete Linux x64 native binary set from the manifest", () =>
     archive: "zip",
     integrity: "transport",
     minGlibc: "2.38",
-    url: "https://api.reduct.store/v1/transitive/reductstore-pro/linux/x64",
+    url: "https://api.reduct.store/v1/transitive/reductstore-pro/linux/x64?version=v1.21.5-0",
   });
 });
 
@@ -97,7 +97,7 @@ test("exposes ReductStore Pro and every bridge variant for Linux arm64", () => {
       archive: "zip",
       integrity: "transport",
       minGlibc: "2.38",
-      url: "https://api.reduct.store/v1/transitive/reductstore-pro/linux/arm64",
+      url: "https://api.reduct.store/v1/transitive/reductstore-pro/linux/arm64?version=v1.21.5-0",
     },
     {
       bin: "reduct-bridge-ros2-jazzy",

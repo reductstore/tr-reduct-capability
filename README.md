@@ -13,7 +13,7 @@ Configure the store, Bridge, and replication tasks from the capability's device 
 
 ## Platform support
 
-Native binaries download automatically when the capability is installed.
+Native binaries download automatically when the capability is installed. Versions are pinned: ReductStore Pro `v1.21.5-0` and ReductBridge `v0.5.7`.
 
 The ReductStore Pro binary requires glibc 2.38 or newer (Ubuntu 24.04+).
 
@@ -22,7 +22,7 @@ The ReductStore Pro binary requires glibc 2.38 or newer (Ubuntu 24.04+).
 | ReductStore Pro | Supported | Supported   |
 | ReductBridge    | Supported | Supported   |
 
-Downloaded binaries are verified against pinned SHA-256 checksums. On systems whose glibc is older than ReductStore Pro requires, the download is skipped, the capability still installs, and it reports that the binary is unavailable.
+Bridge downloads are verified against pinned SHA-256 checksums. On systems whose glibc is older than ReductStore Pro requires, the download is skipped, the capability still installs, and it reports that the binary is unavailable.
 
 ## Uninstalling
 

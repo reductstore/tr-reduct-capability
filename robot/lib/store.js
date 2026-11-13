@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Client } = require("reduct-js");
 const nativeProcess = require("./process");
+const { STATE_DIR } = require("./config");
 
 const STORE_BINARY = path.join(__dirname, "..", "bin", "reductstore");
 
@@ -54,7 +55,7 @@ function buildEnvironment(store, { billingToken } = {}) {
 }
 
 function runtimeDir(store, options = {}) {
-  return options.runtimeDir || path.dirname(store.dataPath);
+  return options.runtimeDir || STATE_DIR;
 }
 
 function executable(options = {}) {
@@ -173,6 +174,7 @@ async function pruneReplications(
 }
 
 module.exports = {
+  runtimeDir,
   buildEnvironment,
   status,
   alive,
