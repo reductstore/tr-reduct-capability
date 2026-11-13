@@ -13,15 +13,16 @@ function capabilityHome(moduleDir = __dirname, env = process.env) {
 
 const CAPABILITY_HOME = capabilityHome();
 
-const STATE_DIR =
-  process.env.STATE_DIR ||
-  path.join(
-    os.homedir(),
-    ".transitive",
+function stateDir(capabilityHomePath = CAPABILITY_HOME) {
+  return path.join(
+    capabilityHomePath,
     "state",
     "@reductstore-tr",
     "reductstore",
   );
+}
+
+const STATE_DIR = process.env.STATE_DIR || stateDir();
 const RUNTIME_DIR = process.env.RUNTIME_DIR || path.join(STATE_DIR, "run");
 const CONFIG_PATH =
   process.env.CONFIG_PATH || path.join(STATE_DIR, "config.json");
@@ -134,6 +135,7 @@ module.exports = {
   API_TOKEN_PATH,
   readOrCreateApiToken,
   capabilityHome,
+  stateDir,
   bridgeVariantForReleases,
   defaults,
   deepMerge,

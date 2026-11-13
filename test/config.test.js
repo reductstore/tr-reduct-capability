@@ -5,8 +5,10 @@ const os = require("node:os");
 const path = require("node:path");
 
 const {
+  CAPABILITY_HOME,
   CONFIG_PATH,
   STATE_DIR,
+  stateDir,
   bridgeVariantForReleases,
   capabilityHome,
   defaults,
@@ -54,6 +56,19 @@ test("the default bridge variant follows the robot's ROS release", () => {
 
 test("default configuration is below the capability state directory", () => {
   assert.equal(CONFIG_PATH, path.join(STATE_DIR, "config.json"));
+});
+
+test("state is package-backed so restarts reuse it and uninstall removes it", () => {
+  const sandbox = capabilityHome(
+    "/home/transitive/node_modules/@reductstore-tr/reductstore/robot/lib",
+    {},
+  );
+
+  assert.equal(
+    stateDir(sandbox),
+    "/home/transitive/state/@reductstore-tr/reductstore",
+  );
+  assert.ok(STATE_DIR.startsWith(`${CAPABILITY_HOME}${path.sep}`));
 });
 
 test("the capability home is the normal Transitive launcher sandbox", () => {
