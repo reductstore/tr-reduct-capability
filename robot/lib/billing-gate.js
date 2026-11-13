@@ -38,6 +38,7 @@ function createBillingGate({
     entitled = true;
     expiresAt = nextExpiresAt;
     timer = schedule(() => revoke("expired"), Math.max(0, expiresAt - now()));
+    // A valid token rotation only refreshes expiry to avoid interrupting ReductStore.
     if (newlyEntitled) onEntitled();
     return { valid: true, expiresAt };
   }
