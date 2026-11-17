@@ -91,6 +91,7 @@ test("starts, reports, and stops a detached native bridge process", async () => 
     runtimeDir: dir,
     executable: process.execPath,
     args: ["-e", "setInterval(() => {}, 1000)"],
+    verifyMs: 50,
   };
 
   await bridge.start(config, processOptions);
@@ -99,7 +100,7 @@ test("starts, reports, and stops a detached native bridge process", async () => 
   assert.equal((await bridge.status(config, processOptions)).running, false);
 });
 
-test("reports a native bridge process error from its log", async () => {
+test("start rejects when ReductBridge exits during startup", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-bridge-error-"));
   const config = {
     ...defaults().bridge,
@@ -109,11 +110,11 @@ test("reports a native bridge process error from its log", async () => {
     runtimeDir: dir,
     executable: process.execPath,
     args: ["-e", "console.error('bridge failure')"],
+    verifyMs: 150,
   };
 
-  await bridge.start(config, processOptions);
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  const status = await bridge.status(config, processOptions);
-  assert.equal(status.running, false);
-  assert.match(status.error, /bridge failure/);
+  await assert.rejects(
+    bridge.start(config, processOptions),
+    /ReductBridge exited on startup[\s\S]*bridge failure/,
+  );
 });

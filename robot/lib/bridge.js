@@ -81,13 +81,24 @@ async function start(bridge, options = {}) {
   const filePath = writeToml(bridge, tomlPath(options), options.store);
   const command = executable(bridge, options);
   assertExecutable(command);
-  return nativeProcess.start(
+  const result = await nativeProcess.start(
     runtimeDir(options),
     "reduct-bridge",
     command,
     options.args || [filePath],
     { ...process.env, ...buildEnvironment(bridge) },
   );
+  const verifyMs = options.verifyMs ?? 1000;
+  if (verifyMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, verifyMs));
+    const state = nativeProcess.status(runtimeDir(options), "reduct-bridge");
+    if (!state.running) {
+      throw new Error(
+        `ReductBridge exited on startup: ${state.error || "no output"}`,
+      );
+    }
+  }
+  return result;
 }
 
 module.exports = {

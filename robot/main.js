@@ -35,8 +35,10 @@ let lastRequestId = null;
 let lastBillingToken = null;
 let chain = Promise.resolve();
 let startedStoreConfig = null;
+let shuttingDown = false;
 
 function enqueue(fn) {
+  if (shuttingDown) return chain;
   chain = chain.then(fn).catch((error) => log.warn(error.message));
   return chain;
 }
@@ -141,18 +143,19 @@ async function runCommand(action, patch) {
       config = saveConfig(config, patch);
       publishDetails();
     }
-    action = effectiveAction(action, config, startedStoreConfig);
+    const snapshot = config;
+    action = effectiveAction(action, snapshot, startedStoreConfig);
     if (requiresBilling(action) && !hasBillingEntitlement()) {
       throw new Error("a valid Transitive billing token is required");
     }
     const message = await runComponentAction(action, {
-      config,
+      config: snapshot,
       store,
       bridge,
       billingToken: lastBillingToken,
     });
     if (action === "start-store" || action === "restart-store") {
-      startedStoreConfig = JSON.stringify(config.store);
+      startedStoreConfig = JSON.stringify(snapshot.store);
     }
     lastError = null;
     await publishStatus(message);
@@ -206,7 +209,10 @@ function onBillingToken(token) {
 }
 
 async function gracefulShutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
   log.info(`${signal} received, stopping native processes`);
+  await chain.catch(() => {});
   const errors = await stopAll(
     { config, store, bridge },
     { graceMs: 2000, onError: (error) => log.warn(error.message) },

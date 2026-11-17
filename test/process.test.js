@@ -191,3 +191,27 @@ test("capLog leaves a log below the limit untouched", () => {
   nativeProcess.capLog(logPath, 1024);
   assert.equal(fs.readFileSync(logPath, "utf8"), "short");
 });
+
+test("status keeps reporting a crash error until the process is restarted", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tr-crash-"));
+  const name = "native";
+  const { pidPath } = nativeProcess.runtimePaths(dir, name);
+  await nativeProcess.start(
+    dir,
+    name,
+    process.execPath,
+    ["-e", "console.error('crashed')"],
+    process.env,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  const first = nativeProcess.status(dir, name);
+  const second = nativeProcess.status(dir, name);
+  assert.equal(first.running, false);
+  assert.match(first.error, /crashed/);
+  assert.match(second.error, /crashed/);
+  assert.equal(fs.existsSync(pidPath), true);
+
+  await nativeProcess.stop(dir, name);
+  assert.equal(fs.existsSync(pidPath), false);
+});

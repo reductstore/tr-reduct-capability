@@ -90,7 +90,6 @@ function status(runtimeDir, name) {
   const record = readPid(pidPath);
   const pid = record?.pid || null;
   const running = isOwned(record);
-  if (!running && pid) fs.rmSync(pidPath, { force: true });
   const log = readLog(logPath);
   capLog(logPath);
   return {
