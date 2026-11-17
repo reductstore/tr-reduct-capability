@@ -1,15 +1,16 @@
 # ReductStore capability architecture figure.
 # Regenerate with: python3 docs/architecture.py
-# Drawing kit: reductstore website repo, scripts/diagrams/blogkit.py
-# (set KIT to its location if the website checkout is elsewhere).
+#
+# Drawing kit: scripts/diagrams/blogkit.py from the official ReductStore
+# website repository (https://github.com/reductstore/website). Clone it next
+# to this repository, or set KIT to its scripts/diagrams directory.
 import os
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
-KIT = os.environ.get(
-    "KIT", str(Path.home() / "git" / "website" / "scripts" / "diagrams")
-)
+REPO_PARENT = Path(__file__).resolve().parents[2]
+KIT = os.environ.get("KIT", str(REPO_PARENT / "website" / "scripts" / "diagrams"))
 sys.path.insert(0, KIT)
 from blogkit import Diagram  # noqa: E402
 
