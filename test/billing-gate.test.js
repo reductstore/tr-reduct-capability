@@ -10,6 +10,7 @@ function fixture() {
   const gate = createBillingGate({
     verify(token) {
       if (token === "invalid") throw new Error("invalid billing token");
+      if (token === "long") return now + 2 ** 31 + 5_000;
       return token === "first" ? now + 10_000 : now + 20_000;
     },
     now: () => now,
@@ -29,7 +30,15 @@ function fixture() {
     },
   });
 
-  return { events, gate, now: () => now, timers };
+  return {
+    events,
+    gate,
+    now: () => now,
+    timers,
+    advance: (ms) => {
+      now += ms;
+    },
+  };
 }
 
 test("billing token rotation refreshes expiry without restarting entitled work", () => {
@@ -47,6 +56,19 @@ test("billing token rotation refreshes expiry without restarting entitled work",
   assert.deepEqual(events, ["entitled"]);
   assert.equal(timers[0].cleared, true);
   assert.equal(timers[1].delay, 20_000);
+});
+
+test("long billing expiry re-arms in bounded chunks instead of firing at once", () => {
+  const { events, gate, timers, advance } = fixture();
+
+  gate.update("long");
+  assert.deepEqual(events, ["entitled"]);
+  assert.ok(timers[0].delay <= 2 ** 31 - 1);
+
+  advance(2 ** 31 + 5_000);
+  timers[0].fn();
+  timers[1].fn();
+  assert.deepEqual(events, ["entitled", "denied:expired"]);
 });
 
 test("billing token expiry revokes entitlement until a valid replacement arrives", () => {

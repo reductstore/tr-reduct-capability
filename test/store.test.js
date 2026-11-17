@@ -123,3 +123,19 @@ test("pruneReplications removes only managed tasks dropped from configuration", 
   assert.deepEqual(removed, ["orphan"]);
   assert.deepEqual(deleted, ["orphan"]);
 });
+
+test("waitUntilAlive stops polling when asked to abort", async () => {
+  let aborted = false;
+  setTimeout(() => {
+    aborted = true;
+  }, 40);
+  const start = Date.now();
+
+  const result = await store.waitUntilAlive(
+    { httpPort: 1 },
+    { timeoutMs: 10000, intervalMs: 20, shouldAbort: () => aborted },
+  );
+
+  assert.equal(result, false);
+  assert.ok(Date.now() - start < 2000);
+});

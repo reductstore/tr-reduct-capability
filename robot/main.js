@@ -153,6 +153,7 @@ async function runCommand(action, patch) {
       store,
       bridge,
       billingToken: lastBillingToken,
+      shouldAbort: () => shuttingDown,
     });
     if (action === "start-store" || action === "restart-store") {
       startedStoreConfig = JSON.stringify(snapshot.store);

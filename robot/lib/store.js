@@ -121,10 +121,11 @@ async function alive(store) {
 
 async function waitUntilAlive(
   store,
-  { timeoutMs = 30000, intervalMs = 1000 } = {},
+  { timeoutMs = 30000, intervalMs = 1000, shouldAbort } = {},
 ) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    if (shouldAbort?.()) return false;
     if (await alive(store)) return true;
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }

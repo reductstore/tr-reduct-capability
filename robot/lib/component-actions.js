@@ -1,4 +1,4 @@
-async function startStore({ config, store, billingToken }) {
+async function startStore({ config, store, billingToken, shouldAbort }) {
   const persisted = store.readManagedReplications
     ? store.readManagedReplications()
     : [];
@@ -6,8 +6,9 @@ async function startStore({ config, store, billingToken }) {
     .filter((task) => task.is_provisioned)
     .map((task) => task.name);
   const managed = [...new Set([...persisted, ...live])];
+  if (shouldAbort?.()) return;
   await store.start(config.store, { billingToken });
-  if (!(await store.waitUntilAlive(config.store))) {
+  if (!(await store.waitUntilAlive(config.store, { shouldAbort }))) {
     throw new Error("ReductStore did not become ready in time");
   }
   const provisioned = (
@@ -77,13 +78,15 @@ async function runComponentAction(action, options) {
     case "restart-store":
       await bridge.stop(config.bridge);
       await startStore(options);
-      if (config.bridge.enabled) {
+      if (config.bridge.enabled && !options.shouldAbort?.()) {
         await bridge.start(config.bridge, { store: config.store });
       }
       return "ReductStore restarted";
     case "start-bridge":
       await ensureStoreReady(options);
-      await bridge.start(config.bridge, { store: config.store });
+      if (!options.shouldAbort?.()) {
+        await bridge.start(config.bridge, { store: config.store });
+      }
       return "ReductBridge started";
     case "stop-bridge":
       await bridge.stop(config.bridge);
@@ -91,7 +94,7 @@ async function runComponentAction(action, options) {
     case "restart-bridge":
       await bridge.stop(config.bridge);
       await ensureStoreReady(options);
-      if (config.bridge.enabled) {
+      if (config.bridge.enabled && !options.shouldAbort?.()) {
         await bridge.start(config.bridge, { store: config.store });
       }
       return "ReductBridge restarted";

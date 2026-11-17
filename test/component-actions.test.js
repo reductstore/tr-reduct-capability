@@ -57,6 +57,17 @@ function dependencies({
   };
 }
 
+test("restart-store spawns nothing new once shutdown has begun", async () => {
+  const options = dependencies();
+  options.shouldAbort = () => true;
+
+  await runComponentAction("restart-store", options);
+
+  assert.ok(!options.events.includes("store.start"));
+  assert.ok(!options.events.includes("store.waitUntilAlive"));
+  assert.ok(!options.events.includes("bridge.start"));
+});
+
 test("restarting ReductStore restarts its enabled bridge after Store is ready", async () => {
   const options = dependencies();
 

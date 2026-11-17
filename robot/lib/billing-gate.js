@@ -1,3 +1,5 @@
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+
 function createBillingGate({
   verify,
   now = Date.now,
@@ -13,6 +15,14 @@ function createBillingGate({
   function clearExpiry() {
     if (timer) cancel(timer);
     timer = null;
+  }
+
+  function scheduleExpiry() {
+    const delay = Math.max(0, expiresAt - now());
+    timer =
+      delay > MAX_TIMEOUT_MS
+        ? schedule(scheduleExpiry, MAX_TIMEOUT_MS)
+        : schedule(() => revoke("expired"), delay);
   }
 
   function revoke(reason) {
@@ -37,7 +47,7 @@ function createBillingGate({
     const newlyEntitled = !entitled;
     entitled = true;
     expiresAt = nextExpiresAt;
-    timer = schedule(() => revoke("expired"), Math.max(0, expiresAt - now()));
+    scheduleExpiry();
     // A valid token rotation only refreshes expiry to avoid interrupting ReductStore.
     if (newlyEntitled) onEntitled();
     return { valid: true, expiresAt };
