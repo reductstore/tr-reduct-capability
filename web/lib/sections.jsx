@@ -553,16 +553,18 @@ function ComponentControls({
           >
             Unsaved changes
           </div>
-          <button
-            style={barPrimary(billingValid)}
-            disabled={!billingValid}
-            onClick={() => onApply(`restart-${component}`)}
-          >
-            Apply &amp; restart {title}
-          </button>
-          <button style={barBtn(true)} onClick={onDiscard}>
-            Discard
-          </button>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            <button
+              style={barPrimary(billingValid)}
+              disabled={!billingValid}
+              onClick={() => onApply(`restart-${component}`)}
+            >
+              Apply &amp; restart {title}
+            </button>
+            <button style={barBtn(true)} onClick={onDiscard}>
+              Discard
+            </button>
+          </div>
         </div>
       )}
     </div>
