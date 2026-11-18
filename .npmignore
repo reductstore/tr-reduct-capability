@@ -7,7 +7,8 @@ tmux.sh
 # Dev-only dirs and sources
 test
 web/
-docs/
+docs/*
+!docs/architecture.svg
 tmp
 wasm
 .github/
@@ -30,4 +31,5 @@ client.key
 # Never publish deps or lockfiles / sourcemaps
 **/node_modules
 **/package-lock.json
+robot/bin/
 dist/*.js.map

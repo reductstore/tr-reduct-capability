@@ -1,38 +1,39 @@
 # ReductStore
 
-Records your robot's data on the robot itself and syncs it to a central
-[ReductStore](https://www.reduct.store/). It runs two Docker containers, managed
-from the portal:
+Record data on each robot and replicate it to a central [ReductStore](https://www.reduct.store/).
 
-- **ReductStore**: a time-series object store that keeps data on the robot with
-  per-bucket size limits.
-- **ReductBridge**: ingests data from the robot (ROS 2, ROS 1, or IoT sources
-  such as MQTT, HTTP, and shell commands) into the store.
+## What it does
 
-## Features
+- Runs **ReductStore Pro** on the robot with a local time-series bucket.
+- Optionally runs **ReductBridge** to record data from ROS 1 topics, ROS 2 topics, MQTT brokers, HTTP endpoints, shell commands, and host metrics.
+- **Replicates** new records to a remote ReductStore. Replication is append-only and resumes after disconnects.
+- Buckets use a configurable quota (FIFO, HARD, or NONE). FIFO drops the oldest records when full, so recording never stops and disk use stays bounded.
 
-- Start, stop, and restart both containers from the portal.
-- Configure the store: image, HTTP port, API token, and bucket (name, quota
-  type, size).
-- Replicate data to a central ReductStore.
-- Pick a data source and edit its bridge configuration in the portal.
-- Fleet view: per-organization running / stopped / error counts, and how many
-  stores and bridges are up.
+Each robot records independently. When offline, data stays local. When connectivity returns, replication catches up.
 
-## Prerequisites
+## Query
 
-- Docker installed on the robot.
-- The data source you want to record, reachable from the robot: a running ROS
-  graph, an MQTT broker, or an HTTP endpoint. ROS ingestion uses host
-  networking.
+Access any robot's store or the central store through the [ReductStore HTTP API and SDKs](https://www.reduct.store/docs/getting-started) (Python, JavaScript, Go, Rust, C++) using the configured endpoint and API token.
 
-## Configuration
+ReductStore Pro includes the [ReductSelect](https://www.reduct.store/docs/extensions/official/select-ext) extension: run SQL queries over stored CSV, JSON, Parquet, and Protobuf records using Apache DataFusion, directly on the database.
 
-Everything is configured from the device view in the portal.
+## Configure
 
-**Store**: set the image, HTTP port, API token, and bucket (name, quota type,
-size), and define replication tasks to sync data to a central ReductStore.
+Open the capability on a device in the Transitive portal to set:
 
-**Bridge**: disabled by default. Pick an image for your data source and edit
-its TOML configuration. See the
-[ReductBridge docs](https://www.reduct.store/docs/reduct-bridge).
+- data path, HTTP port, API token, bucket name, and quota;
+- ReductBridge variant and its TOML configuration;
+- replication targets and filters.
+
+## Requirements
+
+- A valid Transitive billing token (the platform issues it automatically for paid subscriptions).
+- Linux x64 or arm64 with glibc 2.38+ (Ubuntu 24.04+).
+
+Binaries download during installation. Pinned versions: ReductStore Pro `v1.21.5-0`, ReductBridge `v0.5.7`. Bridge archives are verified with SHA-256 checksums.
+
+When ROS is not detected, ReductBridge starts disabled. Enable it from the device page.
+
+## Uninstall
+
+Stopping or uninstalling the capability stops both processes. The default data directory is inside the capability state directory - it survives restarts but is deleted on uninstall. Set the data path to external storage or replicate data before uninstalling.

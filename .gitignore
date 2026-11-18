@@ -147,3 +147,6 @@ cloud/certs
 client.crt
 client.csr
 client.key
+
+# Downloaded native binaries (fetched by robot postinstall)
+robot/bin/
