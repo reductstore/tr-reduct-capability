@@ -28,7 +28,7 @@ Open the capability on a device in the Transitive portal to set:
 ## Requirements
 
 - A valid Transitive billing token (the platform issues it automatically for paid subscriptions).
-- Linux x64 or arm64 with glibc 2.38+ (Ubuntu 24.04+).
+- Linux x64 or arm64 with glibc 2.39+ (Ubuntu 24.04+).
 
 Binaries download during installation. Pinned versions: ReductStore Pro `v1.21.5-0`, ReductBridge `v0.5.7`. Bridge archives are verified with SHA-256 checksums.
 
