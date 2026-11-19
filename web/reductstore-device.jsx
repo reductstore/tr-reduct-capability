@@ -105,7 +105,6 @@ const Device = ({ jwt, id, host, ssl }) => {
       ? "running"
       : "stopped"
     : "disabled";
-  const componentState = `ReductStore ${storeText} · ReductBridge ${bridgeText}`;
   const reps = device.store?.replications || [];
   const repActive = reps.filter((r) => r.is_active).length;
   const repPending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
@@ -126,8 +125,8 @@ const Device = ({ jwt, id, host, ssl }) => {
       >
         {[
           [
-            "State",
-            componentState,
+            "Overall state",
+            state,
             state === "running"
               ? "#107c10"
               : state === "error"
@@ -139,6 +138,8 @@ const Device = ({ jwt, id, host, ssl }) => {
             billingValid ? "valid" : "invalid",
             billingValid ? "#107c10" : "#d13438",
           ],
+          ["ReductStore", storeText, null],
+          ["ReductBridge", bridgeText, null],
           ...(reps.length
             ? [
                 [

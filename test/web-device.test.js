@@ -53,7 +53,7 @@ function loadDevice(data) {
   return Device;
 }
 
-test("identifies each component in the top-level state", () => {
+test("shows overall and component states in the top summary", () => {
   const Device = loadDevice({
     device: {
       state: "error",
@@ -66,8 +66,6 @@ test("identifies each component in the top-level state", () => {
 
   assert.match(
     markup,
-    /State<\/span><b[^>]*>ReductStore starting · ReductBridge stopped<\/b>/,
+    /Overall state<\/span><b[^>]*>error<\/b><span[^>]*>Billing<\/span><b[^>]*>valid<\/b><span[^>]*>ReductStore<\/span><b[^>]*>starting<\/b><span[^>]*>ReductBridge<\/span><b[^>]*>stopped<\/b>/,
   );
-  assert.doesNotMatch(markup, /<span[^>]*>Store<\/span>/);
-  assert.doesNotMatch(markup, /<span[^>]*>Bridge<\/span>/);
 });
