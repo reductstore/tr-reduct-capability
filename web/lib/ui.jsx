@@ -76,7 +76,7 @@ export function ComponentLog({ name, log }) {
 
   if (!log) return null;
   return (
-    <details ref={details} onToggle={scrollToEnd}>
+    <details ref={details} onToggle={scrollToEnd} style={{ marginTop: "14px" }}>
       <summary>{name} logs</summary>
       <pre
         ref={output}
@@ -84,6 +84,8 @@ export function ComponentLog({ name, log }) {
           whiteSpace: "pre-wrap",
           fontSize: "12px",
           maxHeight: "240px",
+          maxWidth: "560px",
+          boxSizing: "border-box",
           overflow: "auto",
         }}
       >

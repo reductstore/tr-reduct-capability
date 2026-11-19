@@ -59,3 +59,69 @@ test("groups dirty Store actions with visible spacing", () => {
     /Unsaved changes<\/div><div style="display:flex;flex-wrap:wrap;gap:6px"><button[^>]*>Apply &amp; restart ReductStore<\/button><button[^>]*>Discard<\/button>/,
   );
 });
+
+test("shows Store and Bridge runtime states independently", () => {
+  const { StoreSection, BridgeSection } = loadSections();
+  const storeMarkup = renderToStaticMarkup(
+    React.createElement(StoreSection, {
+      cfg: config,
+      setCfg() {},
+      dirty: false,
+      dev: {
+        store: { running: true, alive: true },
+        bridge: { running: false },
+      },
+      remote: config,
+      billingValid: true,
+      onControl() {},
+      onApply() {},
+      onDiscard() {},
+    }),
+  );
+  const bridgeMarkup = renderToStaticMarkup(
+    React.createElement(BridgeSection, {
+      cfg: {
+        ...config,
+        bridge: {
+          enabled: true,
+          variant: "iot",
+          preset: "mqtt",
+          env: [],
+          toml: "",
+        },
+      },
+      setCfg() {},
+      dirty: false,
+      dev: {
+        store: { running: true, alive: true },
+        bridge: { running: false },
+      },
+      billingValid: true,
+      onControl() {},
+      onApply() {},
+      onDiscard() {},
+    }),
+  );
+
+  assert.match(storeMarkup, /ReductStore.*Status.*Running/s);
+  assert.match(bridgeMarkup, /ReductBridge.*Status.*Stopped/s);
+});
+
+test("shows starting until ReductStore is healthy", () => {
+  const { StoreSection } = loadSections();
+  const markup = renderToStaticMarkup(
+    React.createElement(StoreSection, {
+      cfg: config,
+      setCfg() {},
+      dirty: false,
+      dev: { store: { running: true, alive: false }, bridge: {} },
+      remote: config,
+      billingValid: true,
+      onControl() {},
+      onApply() {},
+      onDiscard() {},
+    }),
+  );
+
+  assert.match(markup, /ReductStore.*Status.*Starting/s);
+});

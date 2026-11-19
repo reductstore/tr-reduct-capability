@@ -10,6 +10,7 @@ export const select = { padding: "4px 6px", fontSize: "13px" };
 export const num = { width: "90px", padding: "4px 6px", fontSize: "13px" };
 
 const section = {
+  maxWidth: "720px",
   margin: "16px 0",
   padding: "12px",
   border: "1px solid #d5dbe2",

@@ -13,3 +13,15 @@ test("startup without entitlement stops orphaned native processes", () => {
   assert.equal(result.status, 0);
   assert.match(result.stderr, /startup-stop/);
 });
+
+test("development billing bypass keeps the capability entitled", () => {
+  const fixture = path.join(__dirname, "fixtures", "startup-billing-bypass.js");
+  const result = spawnSync(process.execPath, [fixture], {
+    encoding: "utf8",
+    timeout: 5000,
+  });
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "valid");
+  assert.doesNotMatch(result.stderr, /startup-stop/);
+});

@@ -26,6 +26,8 @@ const log = getLogger("reductstore-robot");
 log.setLevel(process.env.LOG_LEVEL || "info");
 
 const isStandalone = process.env.STANDALONE === "true";
+const isBillingBypassed =
+  isStandalone || process.env.TR_BILLING_BYPASS === "true";
 const version = getPackageVersionNamespace();
 
 let mqttSync;
@@ -44,11 +46,11 @@ function enqueue(fn) {
 }
 
 function hasBillingEntitlement() {
-  if (isStandalone) return true;
+  if (isBillingBypassed) return true;
   return billingGate.status().entitled;
 }
 
-const billingGate = isStandalone
+const billingGate = isBillingBypassed
   ? null
   : createBillingGate({
       verify: (token) =>
@@ -112,7 +114,7 @@ async function publishStatus(message) {
     lastError ||
     storeStatus.error ||
     (config.bridge.enabled && bridgeStatus.error);
-  const billing = isStandalone
+  const billing = isBillingBypassed
     ? { entitled: true, expiresAt: null }
     : billingGate.status();
 
@@ -243,7 +245,7 @@ async function boot() {
     };
   }
 
-  if (!isStandalone) {
+  if (!isBillingBypassed) {
     const persisted = loadPersistedToken();
     if (persisted) {
       if (billingGate.update(persisted).valid) {
@@ -281,7 +283,7 @@ async function boot() {
     mqttSync.publish("/device");
     mqttSync.data.subscribePathFlat("/commands", onCommand);
     mqttSync.data.subscribePathFlat("/config", onConfig);
-    if (!isStandalone) {
+    if (!isBillingBypassed) {
       mqttSync.data.subscribePathFlat("/billing/token", onBillingToken);
     }
 
@@ -293,7 +295,7 @@ async function boot() {
     await publishStatus("ready").catch((error) => log.warn(error.message));
 
     if (config.autoStart) {
-      if (isStandalone || hasBillingEntitlement()) {
+      if (hasBillingEntitlement()) {
         log.info("autoStart: starting");
         enqueue(() => runCommand("restart-store"));
       } else {

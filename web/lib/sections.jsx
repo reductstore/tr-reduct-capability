@@ -24,7 +24,6 @@ export function StoreSection({
   dirty,
   dev,
   remote,
-  consoleUrl,
   billingValid,
   onControl,
   onApply,
@@ -52,26 +51,13 @@ export function StoreSection({
       <SectionHead
         title="ReductStore"
         href="https://www.reduct.store/docs/configuration/provisioning"
-      />
-      {consoleUrl && (
-        <a
-          href={consoleUrl}
-          target="_blank"
-          rel="noreferrer"
-          style={{
-            display: "inline-block",
-            fontSize: "13px",
-            color: "#0078d4",
-            textDecoration: "none",
-            border: "1px solid #0078d4",
-            borderRadius: "3px",
-            padding: "4px 10px",
-            marginBottom: "8px",
-          }}
-        >
-          Open ReductStore console ↗
-        </a>
-      )}
+      >
+        <ComponentState
+          running={storeRunning}
+          starting={storeRunning && !dev.store?.alive}
+          error={dev.store?.error}
+        />
+      </SectionHead>
       <Field label="HTTP port">
         <input
           style={input}
@@ -121,13 +107,7 @@ export function StoreSection({
         )}
       </Field>
 
-      <ReplicationSection
-        cfg={cfg}
-        setCfg={setCfg}
-        dev={dev}
-        remote={remote}
-        consoleUrl={consoleUrl}
-      />
+      <ReplicationSection cfg={cfg} setCfg={setCfg} dev={dev} remote={remote} />
 
       <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
         Extra environment variables (optional)
@@ -155,7 +135,6 @@ export function StoreSection({
       <button style={btn} onClick={addEnv}>
         Add variable
       </button>
-      <ComponentLog name="ReductStore" log={dev.store?.log} />
       <ComponentControls
         component="store"
         running={storeRunning}
@@ -166,11 +145,12 @@ export function StoreSection({
         onApply={onApply}
         onDiscard={onDiscard}
       />
+      <ComponentLog name="ReductStore" log={dev.store?.log} />
     </div>
   );
 }
 
-export function ReplicationSection({ cfg, setCfg, dev, remote, consoleUrl }) {
+export function ReplicationSection({ cfg, setCfg, dev, remote }) {
   const store = cfg.store;
   const reps = store.replications || [];
   const setReps = (v) =>
@@ -307,16 +287,6 @@ export function ReplicationSection({ cfg, setCfg, dev, remote, consoleUrl }) {
           ⚠ {orphanReps.map((n) => `"${n}"`).join(", ")}{" "}
           {orphanReps.length > 1 ? "are" : "is"} on the device but not managed
           here (e.g. created manually).
-          {consoleUrl && (
-            <>
-              {" "}
-              Delete {orphanReps.length > 1 ? "them" : "it"} in the{" "}
-              <a href={consoleUrl} target="_blank" rel="noreferrer">
-                ReductStore console
-              </a>{" "}
-              if unwanted.
-            </>
-          )}
         </p>
       )}
       <button style={btn} onClick={addRep}>
@@ -383,7 +353,9 @@ export function BridgeSection({
         <SectionHead
           title="ReductBridge"
           href="https://www.reduct.store/docs/reduct-bridge"
-        />
+        >
+          <ComponentState disabled />
+        </SectionHead>
         <button
           style={barPrimary(billingValid)}
           disabled={!billingValid}
@@ -405,7 +377,12 @@ export function BridgeSection({
       <SectionHead
         title="ReductBridge"
         href="https://www.reduct.store/docs/reduct-bridge"
-      />
+      >
+        <ComponentState
+          running={!!dev.bridge?.running}
+          error={dev.bridge?.error}
+        />
+      </SectionHead>
       <Field label="Variant">
         <select
           style={select}
@@ -481,7 +458,6 @@ export function BridgeSection({
           minRows={3}
         />
       </div>
-      <ComponentLog name="ReductBridge" log={dev.bridge?.log} />
       <ComponentControls
         component="bridge"
         running={!!dev.bridge?.running}
@@ -505,9 +481,37 @@ export function BridgeSection({
           </button>
         }
       />
+      <ComponentLog name="ReductBridge" log={dev.bridge?.log} />
     </div>
   );
 }
+function ComponentState({
+  running,
+  error,
+  disabled = false,
+  starting = false,
+}) {
+  const state = disabled
+    ? "Disabled"
+    : error
+      ? "Error"
+      : starting
+        ? "Starting"
+        : running
+          ? "Running"
+          : "Stopped";
+  const color = error
+    ? "#b00020"
+    : starting
+      ? "#b06000"
+      : running
+        ? "#247a3f"
+        : disabled
+          ? "#666"
+          : "#555";
+  return <span style={{ fontSize: "12px", color }}>Status: {state}</span>;
+}
+
 function ComponentControls({
   component,
   running,

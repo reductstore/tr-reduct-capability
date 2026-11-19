@@ -53,14 +53,6 @@ const Device = ({ jwt, id, host, ssl }) => {
     setFeedback(msg);
     setTimeout(() => setFeedback(null), 4000);
   };
-  const commandLabel = {
-    "start-store": "Starting ReductStore",
-    "stop-store": "Stopping ReductStore",
-    "restart-store": "Restarting ReductStore",
-    "start-bridge": "Starting ReductBridge",
-    "stop-bridge": "Stopping ReductBridge",
-    "restart-bridge": "Restarting ReductBridge",
-  };
 
   const sendCommand = (action, config) => {
     if (!mqttSync) return;
@@ -76,7 +68,6 @@ const Device = ({ jwt, id, host, ssl }) => {
   };
   const control = (action) => {
     sendCommand(action);
-    flash(commandLabel[action]);
   };
   const apply = (action, nextCfg = cfg) => {
     const nextIssues = validateConfig(nextCfg);
@@ -86,7 +77,6 @@ const Device = ({ jwt, id, host, ssl }) => {
     }
     setCfg(nextCfg);
     sendCommand(action, nextCfg);
-    flash(`Applying configuration and ${commandLabel[action].toLowerCase()}…`);
   };
   const discard = (section) => {
     if (!remote) return;
@@ -120,11 +110,6 @@ const Device = ({ jwt, id, host, ssl }) => {
   const repPending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
 
   const billingValid = device.billing?.state === "valid";
-  const storePort = device.store?.httpPort || cfg?.store.httpPort;
-  const consoleUrl =
-    device.store?.host && storePort
-      ? `http://${device.store.host}:${storePort}/`
-      : null;
 
   return (
     <div>
@@ -215,7 +200,6 @@ const Device = ({ jwt, id, host, ssl }) => {
             dirty={storeDirty}
             dev={device}
             remote={remote}
-            consoleUrl={consoleUrl}
             billingValid={billingValid}
             onControl={control}
             onApply={apply}
