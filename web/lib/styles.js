@@ -11,7 +11,7 @@ export const num = { width: "90px", padding: "4px 6px", fontSize: "13px" };
 
 const section = {
   maxWidth: "720px",
-  margin: "16px 0",
+  margin: "0 0 16px",
   padding: "12px",
   border: "1px solid #d5dbe2",
   borderRadius: "6px",
