@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createWebComponent, useTransitive } from "@transitive-sdk/utils-web";
 import { validateConfig } from "./lib/validate";
-import { StoreSection, BridgeSection } from "./lib/sections";
+import { StoreSection, BridgeSection, ApplyBar } from "./lib/sections";
 import { btn } from "./lib/styles";
 
 const [, capabilityName] = TR_PKG_NAME.split("/");
@@ -78,9 +78,9 @@ const Device = ({ jwt, id, host, ssl }) => {
     setCfg(nextCfg);
     sendCommand(action, nextCfg);
   };
-  const discard = (section) => {
+  const discardAll = () => {
     if (!remote) return;
-    setCfg({ ...cfg, [section]: remote[section] });
+    setCfg(remote);
   };
 
   const remote = (() => {
@@ -150,8 +150,6 @@ const Device = ({ jwt, id, host, ssl }) => {
             remote={remote}
             billingValid={billingValid}
             onControl={control}
-            onApply={apply}
-            onDiscard={() => discard("store")}
           />
           <BridgeSection
             cfg={cfg}
@@ -161,7 +159,12 @@ const Device = ({ jwt, id, host, ssl }) => {
             billingValid={billingValid}
             onControl={control}
             onApply={apply}
-            onDiscard={() => discard("bridge")}
+          />
+          <ApplyBar
+            dirty={storeDirty || bridgeDirty}
+            billingValid={billingValid}
+            onApply={() => apply("restart-store")}
+            onDiscard={discardAll}
           />
         </>
       )}

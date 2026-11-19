@@ -38,28 +38,6 @@ const config = {
   bridge: {},
 };
 
-test("groups dirty Store actions with visible spacing", () => {
-  const { StoreSection } = loadSections();
-  const markup = renderToStaticMarkup(
-    React.createElement(StoreSection, {
-      cfg: config,
-      setCfg() {},
-      dirty: true,
-      dev: { store: {}, bridge: {} },
-      remote: config,
-      billingValid: true,
-      onControl() {},
-      onApply() {},
-      onDiscard() {},
-    }),
-  );
-
-  assert.match(
-    markup,
-    /Unsaved changes<\/div><div style="display:flex;flex-wrap:wrap;gap:6px"><button[^>]*>Apply &amp; restart ReductStore<\/button><button[^>]*>Discard<\/button>/,
-  );
-});
-
 test("shows a discrete state on each component card", () => {
   const { StoreSection, BridgeSection } = loadSections();
   const storeMarkup = renderToStaticMarkup(
@@ -71,8 +49,6 @@ test("shows a discrete state on each component card", () => {
       remote: config,
       billingValid: true,
       onControl() {},
-      onApply() {},
-      onDiscard() {},
     }),
   );
   const bridgeMarkup = renderToStaticMarkup(
@@ -92,8 +68,6 @@ test("shows a discrete state on each component card", () => {
       dev: { store: {}, bridge: { enabled: true, running: true } },
       billingValid: true,
       onControl() {},
-      onApply() {},
-      onDiscard() {},
     }),
   );
 

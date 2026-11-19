@@ -26,8 +26,6 @@ export function StoreSection({
   remote,
   billingValid,
   onControl,
-  onApply,
-  onDiscard,
 }) {
   const store = cfg.store;
   const setStore = (k, v) => setCfg({ ...cfg, store: { ...store, [k]: v } });
@@ -141,10 +139,7 @@ export function StoreSection({
         running={storeRunning}
         canStop={storeRunning || !!dev.bridge?.running}
         billingValid={billingValid}
-        dirty={dirty}
         onControl={onControl}
-        onApply={onApply}
-        onDiscard={onDiscard}
       />
       <ComponentLog name="ReductStore" log={dev.store?.log} />
     </div>
@@ -305,7 +300,6 @@ export function BridgeSection({
   billingValid,
   onControl,
   onApply,
-  onDiscard,
 }) {
   const bridge = cfg.bridge;
   const setBridge = (k, v) => setCfg({ ...cfg, bridge: { ...bridge, [k]: v } });
@@ -464,10 +458,7 @@ export function BridgeSection({
         running={!!dev.bridge?.running}
         canStop={!!dev.bridge?.running}
         billingValid={billingValid}
-        dirty={dirty}
         onControl={onControl}
-        onApply={onApply}
-        onDiscard={onDiscard}
         disable={
           <button
             style={barBtn(true)}
@@ -483,6 +474,24 @@ export function BridgeSection({
         }
       />
       <ComponentLog name="ReductBridge" log={dev.bridge?.log} />
+    </div>
+  );
+}
+
+export function ApplyBar({ dirty, billingValid, onApply, onDiscard }) {
+  const enabled = dirty && billingValid;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+      <button
+        style={enabled ? barPrimary(true) : barBtn(false)}
+        disabled={!enabled}
+        onClick={onApply}
+      >
+        Apply &amp; restart
+      </button>
+      <button style={barBtn(dirty)} disabled={!dirty} onClick={onDiscard}>
+        Discard
+      </button>
     </div>
   );
 }
@@ -531,13 +540,9 @@ function ComponentControls({
   running,
   canStop,
   billingValid,
-  dirty,
   onControl,
-  onApply,
-  onDiscard,
   disable,
 }) {
-  const title = component === "store" ? "ReductStore" : "ReductBridge";
   return (
     <div style={{ marginTop: "10px" }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -564,27 +569,6 @@ function ComponentControls({
         </button>
         {disable}
       </div>
-      {dirty && (
-        <div style={{ marginTop: "6px" }}>
-          <div
-            style={{ fontSize: "13px", color: "#b06000", marginBottom: "4px" }}
-          >
-            Unsaved changes
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            <button
-              style={barPrimary(billingValid)}
-              disabled={!billingValid}
-              onClick={() => onApply(`restart-${component}`)}
-            >
-              Apply &amp; restart {title}
-            </button>
-            <button style={barBtn(true)} onClick={onDiscard}>
-              Discard
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
