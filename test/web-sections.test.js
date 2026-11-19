@@ -60,61 +60,14 @@ test("groups dirty Store actions with visible spacing", () => {
   );
 });
 
-test("shows Store and Bridge runtime states independently", () => {
-  const { StoreSection, BridgeSection } = loadSections();
-  const storeMarkup = renderToStaticMarkup(
-    React.createElement(StoreSection, {
-      cfg: config,
-      setCfg() {},
-      dirty: false,
-      dev: {
-        store: { running: true, alive: true },
-        bridge: { running: false },
-      },
-      remote: config,
-      billingValid: true,
-      onControl() {},
-      onApply() {},
-      onDiscard() {},
-    }),
-  );
-  const bridgeMarkup = renderToStaticMarkup(
-    React.createElement(BridgeSection, {
-      cfg: {
-        ...config,
-        bridge: {
-          enabled: true,
-          variant: "iot",
-          preset: "mqtt",
-          env: [],
-          toml: "",
-        },
-      },
-      setCfg() {},
-      dirty: false,
-      dev: {
-        store: { running: true, alive: true },
-        bridge: { running: false },
-      },
-      billingValid: true,
-      onControl() {},
-      onApply() {},
-      onDiscard() {},
-    }),
-  );
-
-  assert.match(storeMarkup, /ReductStore.*Status.*Running/s);
-  assert.match(bridgeMarkup, /ReductBridge.*Status.*Stopped/s);
-});
-
-test("shows starting until ReductStore is healthy", () => {
+test("does not repeat component state in cards", () => {
   const { StoreSection } = loadSections();
   const markup = renderToStaticMarkup(
     React.createElement(StoreSection, {
       cfg: config,
       setCfg() {},
       dirty: false,
-      dev: { store: { running: true, alive: false }, bridge: {} },
+      dev: { store: { running: true, alive: true }, bridge: {} },
       remote: config,
       billingValid: true,
       onControl() {},
@@ -123,5 +76,5 @@ test("shows starting until ReductStore is healthy", () => {
     }),
   );
 
-  assert.match(markup, /ReductStore.*Status.*Starting/s);
+  assert.doesNotMatch(markup, /Status:/);
 });

@@ -51,13 +51,7 @@ export function StoreSection({
       <SectionHead
         title="ReductStore"
         href="https://www.reduct.store/docs/configuration/provisioning"
-      >
-        <ComponentState
-          running={storeRunning}
-          starting={storeRunning && !dev.store?.alive}
-          error={dev.store?.error}
-        />
-      </SectionHead>
+      />
       <Field label="HTTP port">
         <input
           style={input}
@@ -353,9 +347,7 @@ export function BridgeSection({
         <SectionHead
           title="ReductBridge"
           href="https://www.reduct.store/docs/reduct-bridge"
-        >
-          <ComponentState disabled />
-        </SectionHead>
+        />
         <button
           style={barPrimary(billingValid)}
           disabled={!billingValid}
@@ -377,12 +369,7 @@ export function BridgeSection({
       <SectionHead
         title="ReductBridge"
         href="https://www.reduct.store/docs/reduct-bridge"
-      >
-        <ComponentState
-          running={!!dev.bridge?.running}
-          error={dev.bridge?.error}
-        />
-      </SectionHead>
+      />
       <Field label="Variant">
         <select
           style={select}
@@ -484,32 +471,6 @@ export function BridgeSection({
       <ComponentLog name="ReductBridge" log={dev.bridge?.log} />
     </div>
   );
-}
-function ComponentState({
-  running,
-  error,
-  disabled = false,
-  starting = false,
-}) {
-  const state = disabled
-    ? "Disabled"
-    : error
-      ? "Error"
-      : starting
-        ? "Starting"
-        : running
-          ? "Running"
-          : "Stopped";
-  const color = error
-    ? "#b00020"
-    : starting
-      ? "#b06000"
-      : running
-        ? "#247a3f"
-        : disabled
-          ? "#666"
-          : "#555";
-  return <span style={{ fontSize: "12px", color }}>Status: {state}</span>;
 }
 
 function ComponentControls({
