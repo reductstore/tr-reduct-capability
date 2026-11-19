@@ -94,68 +94,16 @@ const Device = ({ jwt, id, host, ssl }) => {
   const storeDirty = !!cfg && !!remote && differs(cfg.store, remote.store);
   const bridgeDirty = !!cfg && !!remote && differs(cfg.bridge, remote.bridge);
 
-  const state = device.state || "unknown";
-  const storeText = device.store?.running
-    ? device.store?.alive
-      ? "running"
-      : "starting"
-    : "stopped";
-  const bridgeText = device.bridge?.enabled
-    ? device.bridge?.running
-      ? "running"
-      : "stopped"
-    : "disabled";
-  const reps = device.store?.replications || [];
-  const repActive = reps.filter((r) => r.is_active).length;
-  const repPending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
-
   const billingValid = device.billing?.state === "valid";
 
   return (
     <div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "auto 1fr",
-          gap: "2px 12px",
-          fontSize: "13px",
-          margin: "8px 0",
-          maxWidth: "500px",
-        }}
-      >
-        {[
-          [
-            "Overall state",
-            state,
-            state === "running"
-              ? "#107c10"
-              : state === "error"
-                ? "#d13438"
-                : "#666",
-          ],
-          [
-            "Billing",
-            billingValid ? "valid" : "invalid",
-            billingValid ? "#107c10" : "#d13438",
-          ],
-          ["ReductStore", storeText, null],
-          ["ReductBridge", bridgeText, null],
-          ...(reps.length
-            ? [
-                [
-                  "Replication",
-                  `${repActive}/${reps.length} active · ${repPending} pending`,
-                  null,
-                ],
-              ]
-            : []),
-        ].map(([label, value, color]) => (
-          <React.Fragment key={label}>
-            <span style={{ color: "#888" }}>{label}</span>
-            <b style={color ? { color } : undefined}>{value}</b>
-          </React.Fragment>
-        ))}
-      </div>
+      {!billingValid && (
+        <p style={{ fontSize: "13px", color: "#d13438" }}>
+          Billing: invalid. Controls are disabled until a valid billing token
+          arrives.
+        </p>
+      )}
 
       {feedback && (
         <pre

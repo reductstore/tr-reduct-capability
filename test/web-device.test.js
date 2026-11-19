@@ -53,19 +53,21 @@ function loadDevice(data) {
   return Device;
 }
 
-test("shows overall and component states in the top summary", () => {
+test("shows billing only when invalid and omits the top summary", () => {
   const Device = loadDevice({
     device: {
       state: "error",
-      billing: { state: "valid" },
+      billing: { state: "invalid" },
       store: { running: true, alive: false },
       bridge: { enabled: true, running: false },
     },
   });
   const markup = renderToStaticMarkup(React.createElement(Device, {}));
 
-  assert.match(
+  assert.match(markup, /Billing: invalid/);
+  assert.doesNotMatch(markup, /Overall state/);
+  assert.doesNotMatch(
     markup,
-    /Overall state<\/span><b[^>]*>error<\/b><span[^>]*>Billing<\/span><b[^>]*>valid<\/b><span[^>]*>ReductStore<\/span><b[^>]*>starting<\/b><span[^>]*>ReductBridge<\/span><b[^>]*>stopped<\/b>/,
+    /<span[^>]*>ReductStore<\/span><b[^>]*>starting<\/b>/,
   );
 });

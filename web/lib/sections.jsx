@@ -51,7 +51,13 @@ export function StoreSection({
       <SectionHead
         title="ReductStore"
         href="https://www.reduct.store/docs/configuration/provisioning"
-      />
+      >
+        <ComponentState
+          running={storeRunning}
+          starting={storeRunning && !dev.store?.alive}
+          error={dev.store?.error}
+        />
+      </SectionHead>
       <Field label="HTTP port">
         <input
           style={input}
@@ -102,6 +108,7 @@ export function StoreSection({
       </Field>
 
       <ReplicationSection cfg={cfg} setCfg={setCfg} dev={dev} remote={remote} />
+      <ReplicationStatus dev={dev} />
 
       <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
         Extra environment variables (optional)
@@ -347,7 +354,9 @@ export function BridgeSection({
         <SectionHead
           title="ReductBridge"
           href="https://www.reduct.store/docs/reduct-bridge"
-        />
+        >
+          <ComponentState disabled />
+        </SectionHead>
         <button
           style={barPrimary(billingValid)}
           disabled={!billingValid}
@@ -369,7 +378,12 @@ export function BridgeSection({
       <SectionHead
         title="ReductBridge"
         href="https://www.reduct.store/docs/reduct-bridge"
-      />
+      >
+        <ComponentState
+          running={!!dev.bridge?.running}
+          error={dev.bridge?.error}
+        />
+      </SectionHead>
       <Field label="Variant">
         <select
           style={select}
@@ -469,6 +483,45 @@ export function BridgeSection({
         }
       />
       <ComponentLog name="ReductBridge" log={dev.bridge?.log} />
+    </div>
+  );
+}
+
+function ComponentState({
+  running,
+  error,
+  disabled = false,
+  starting = false,
+}) {
+  const state = disabled
+    ? "Disabled"
+    : error
+      ? "Error"
+      : starting
+        ? "Starting"
+        : running
+          ? "Running"
+          : "Stopped";
+  const color = error
+    ? "#b00020"
+    : starting
+      ? "#b06000"
+      : running
+        ? "#247a3f"
+        : disabled
+          ? "#666"
+          : "#555";
+  return <span style={{ fontSize: "12px", color }}>Status: {state}</span>;
+}
+
+function ReplicationStatus({ dev }) {
+  const reps = dev.store?.replications || [];
+  if (!reps.length) return null;
+  const active = reps.filter((r) => r.is_active).length;
+  const pending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
+  return (
+    <div style={{ fontSize: "12px", color: "#555", margin: "8px 0" }}>
+      Replication: {active}/{reps.length} active · {pending} pending
     </div>
   );
 }

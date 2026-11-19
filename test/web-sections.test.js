@@ -60,14 +60,14 @@ test("groups dirty Store actions with visible spacing", () => {
   );
 });
 
-test("does not repeat component state in cards", () => {
-  const { StoreSection } = loadSections();
-  const markup = renderToStaticMarkup(
+test("shows a discrete state on each component card", () => {
+  const { StoreSection, BridgeSection } = loadSections();
+  const storeMarkup = renderToStaticMarkup(
     React.createElement(StoreSection, {
       cfg: config,
       setCfg() {},
       dirty: false,
-      dev: { store: { running: true, alive: true }, bridge: {} },
+      dev: { store: { running: true, alive: false }, bridge: {} },
       remote: config,
       billingValid: true,
       onControl() {},
@@ -75,6 +75,28 @@ test("does not repeat component state in cards", () => {
       onDiscard() {},
     }),
   );
+  const bridgeMarkup = renderToStaticMarkup(
+    React.createElement(BridgeSection, {
+      cfg: {
+        ...config,
+        bridge: {
+          enabled: true,
+          variant: "iot",
+          preset: "mqtt",
+          env: [],
+          toml: "",
+        },
+      },
+      setCfg() {},
+      dirty: false,
+      dev: { store: {}, bridge: { enabled: true, running: true } },
+      billingValid: true,
+      onControl() {},
+      onApply() {},
+      onDiscard() {},
+    }),
+  );
 
-  assert.doesNotMatch(markup, /Status:/);
+  assert.match(storeMarkup, /ReductStore.*Status: Starting/s);
+  assert.match(bridgeMarkup, /ReductBridge.*Status: Running/s);
 });
