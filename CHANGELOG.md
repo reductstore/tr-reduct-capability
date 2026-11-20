@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Add a local billing bypass and refine the portal controls, [PR-9](https://github.com/reductstore/tr-reduct-capability/pull/9).
+- Price the capability at $20 per robot per month, rebuild the portal UI on the Transitive Bootstrap look, and reduce it to one control bar, [PR-9](https://github.com/reductstore/tr-reduct-capability/pull/9).
 
 ## [0.2.0] - 2026-11-18
 
