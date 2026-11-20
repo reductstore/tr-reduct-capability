@@ -19,8 +19,8 @@ test("SIGTERM shutdown waits for an in-flight action before stopping", () => {
   });
 
   assert.equal(result.status, 0);
-  const started = result.stderr.indexOf("start:restart-store");
-  const done = result.stderr.indexOf("done:restart-store");
+  const started = result.stderr.indexOf("start:start");
+  const done = result.stderr.indexOf("done:start");
   const stopped = result.stderr.indexOf("stopAll");
   assert.ok(
     started >= 0 && done > started && stopped > done,

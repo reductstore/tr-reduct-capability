@@ -1,5 +1,12 @@
 import React from "react";
-import { Field, SectionHead, GrowTextarea, ComponentLog } from "./ui";
+import { Button, Card, Form, InputGroup } from "react-bootstrap";
+import {
+  Field,
+  SectionHead,
+  GrowTextarea,
+  ComponentLog,
+  StatusBadge,
+} from "./ui";
 import {
   VARIANTS,
   PRESETS,
@@ -7,143 +14,147 @@ import {
   renderPreset,
   isPresetToml,
 } from "./presets";
-import {
-  row,
-  input,
-  select,
-  btn,
-  hint,
-  sectionStyle,
-  barBtn,
-  barPrimary,
-} from "./styles";
 
-export function StoreSection({
-  cfg,
-  setCfg,
-  dirty,
-  dev,
-  remote,
-  billingValid,
-  onControl,
-}) {
+function cardProps(dirty) {
+  return {
+    className: "mb-3",
+    border: dirty ? "warning" : undefined,
+  };
+}
+
+function EnvEditor({ env, setEnv, addEnv, removeEnv, placeholder }) {
+  return (
+    <>
+      <div className="fw-semibold mt-3 mb-2">
+        Extra environment variables (optional)
+      </div>
+      {env.map((e, i) => (
+        <InputGroup key={i} className="mb-2" style={{ maxWidth: "520px" }}>
+          <Form.Control
+            placeholder={placeholder}
+            value={e.key || ""}
+            onChange={(ev) => setEnv(i, "key", ev.target.value)}
+          />
+          <InputGroup.Text>=</InputGroup.Text>
+          <Form.Control
+            placeholder="value"
+            value={e.value || ""}
+            onChange={(ev) => setEnv(i, "value", ev.target.value)}
+          />
+          <Button variant="outline-secondary" onClick={() => removeEnv(i)}>
+            ×
+          </Button>
+        </InputGroup>
+      ))}
+      <Button variant="outline-secondary" size="sm" onClick={addEnv}>
+        Add variable
+      </Button>
+    </>
+  );
+}
+
+export function StoreSection({ cfg, setCfg, dirty, dev, remote }) {
   const store = cfg.store;
   const setStore = (k, v) => setCfg({ ...cfg, store: { ...store, [k]: v } });
   const setBucket = (k, v) => setStore("bucket", { ...store.bucket, [k]: v });
-  const storeRunning = !!dev.store?.running;
   const env = store.env || [];
   const setEnv = (i, k, v) =>
     setStore(
       "env",
       env.map((e, j) => (j === i ? { ...e, [k]: v } : e)),
     );
-  const addEnv = () => setStore("env", [...env, { key: "", value: "" }]);
-  const removeEnv = (i) =>
-    setStore(
-      "env",
-      env.filter((_, j) => j !== i),
-    );
 
   return (
-    <div style={sectionStyle(dirty)}>
+    <Card {...cardProps(dirty)}>
       <SectionHead
         title="ReductStore"
         href="https://www.reduct.store/docs/configuration/provisioning"
       >
-        <ComponentState
-          running={storeRunning}
-          starting={storeRunning && !dev.store?.alive}
-          error={dev.store?.error}
-        />
+        <StatusBadge state={storeState(dev)} />
       </SectionHead>
-      <Field label="HTTP port">
-        <input
-          style={input}
-          type="number"
-          value={store.httpPort}
-          onChange={(e) => setStore("httpPort", Number(e.target.value))}
-        />
-      </Field>
-      <Field label="Data path">
-        <input
-          style={input}
-          value={store.dataPath}
-          onChange={(e) => setStore("dataPath", e.target.value)}
-        />
-      </Field>
-      <Field label="API token">
-        <input
-          style={input}
-          value={store.apiToken}
-          onChange={(e) => setStore("apiToken", e.target.value)}
-        />
-      </Field>
-      <Field label="Bucket name">
-        <input
-          style={input}
-          value={store.bucket.name}
-          onChange={(e) => setBucket("name", e.target.value)}
-        />
-      </Field>
-      <Field label="Quota">
-        <select
-          style={select}
-          value={store.bucket.quotaType}
-          onChange={(e) => setBucket("quotaType", e.target.value)}
-        >
-          <option>NONE</option>
-          <option>FIFO</option>
-          <option>HARD</option>
-        </select>
-        {store.bucket.quotaType !== "NONE" && (
-          <input
-            style={input}
-            placeholder="1GB"
-            value={store.bucket.quotaSize}
-            onChange={(e) => setBucket("quotaSize", e.target.value)}
+      <Card.Body>
+        <Field label="HTTP port">
+          <Form.Control
+            type="number"
+            style={{ maxWidth: "140px" }}
+            value={store.httpPort}
+            onChange={(e) => setStore("httpPort", Number(e.target.value))}
           />
-        )}
-      </Field>
+        </Field>
+        <Field label="Data path">
+          <Form.Control
+            value={store.dataPath}
+            onChange={(e) => setStore("dataPath", e.target.value)}
+          />
+        </Field>
+        <Field label="API token">
+          <Form.Control
+            value={store.apiToken}
+            onChange={(e) => setStore("apiToken", e.target.value)}
+          />
+        </Field>
+        <Field label="Bucket name">
+          <Form.Control
+            value={store.bucket.name}
+            onChange={(e) => setBucket("name", e.target.value)}
+          />
+        </Field>
+        <Field label="Quota">
+          <Form.Select
+            style={{ maxWidth: "140px" }}
+            value={store.bucket.quotaType}
+            onChange={(e) => setBucket("quotaType", e.target.value)}
+          >
+            <option>NONE</option>
+            <option>FIFO</option>
+            <option>HARD</option>
+          </Form.Select>
+          {store.bucket.quotaType !== "NONE" && (
+            <Form.Control
+              style={{ maxWidth: "140px" }}
+              placeholder="1GB"
+              value={store.bucket.quotaSize}
+              onChange={(e) => setBucket("quotaSize", e.target.value)}
+            />
+          )}
+        </Field>
 
-      <ReplicationSection cfg={cfg} setCfg={setCfg} dev={dev} remote={remote} />
-      <ReplicationStatus dev={dev} />
+        <ReplicationSection
+          cfg={cfg}
+          setCfg={setCfg}
+          dev={dev}
+          remote={remote}
+        />
 
-      <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
-        Extra environment variables (optional)
-      </div>
-      {env.map((e, i) => (
-        <div key={i} style={row}>
-          <input
-            style={{ ...input, maxWidth: "220px" }}
-            placeholder="RS_LOG_LEVEL"
-            value={e.key || ""}
-            onChange={(ev) => setEnv(i, "key", ev.target.value)}
-          />
-          <span>=</span>
-          <input
-            style={input}
-            placeholder="value"
-            value={e.value || ""}
-            onChange={(ev) => setEnv(i, "value", ev.target.value)}
-          />
-          <button style={btn} onClick={() => removeEnv(i)}>
-            ×
-          </button>
-        </div>
-      ))}
-      <button style={btn} onClick={addEnv}>
-        Add variable
-      </button>
-      <ComponentControls
-        component="store"
-        running={storeRunning}
-        canStop={storeRunning || !!dev.bridge?.running}
-        billingValid={billingValid}
-        onControl={onControl}
-      />
-      <ComponentLog name="ReductStore" log={dev.store?.log} />
-    </div>
+        <EnvEditor
+          env={env}
+          setEnv={setEnv}
+          addEnv={() => setStore("env", [...env, { key: "", value: "" }])}
+          removeEnv={(i) =>
+            setStore(
+              "env",
+              env.filter((_, j) => j !== i),
+            )
+          }
+          placeholder="RS_LOG_LEVEL"
+        />
+
+        <ComponentLog name="ReductStore" log={dev.store?.log} />
+      </Card.Body>
+    </Card>
   );
+}
+
+function storeState(dev) {
+  if (dev.store?.error) return "error";
+  if (!dev.store?.running) return "stopped";
+  return dev.store?.alive ? "running" : "starting";
+}
+
+function bridgeState(dev, enabled) {
+  if (!enabled) return "disabled";
+  if (dev.bridge?.error) return "error";
+  return dev.bridge?.running ? "running" : "stopped";
 }
 
 export function ReplicationSection({ cfg, setCfg, dev, remote }) {
@@ -176,145 +187,111 @@ export function ReplicationSection({ cfg, setCfg, dev, remote }) {
     );
 
   return (
-    <div style={{ marginTop: "14px" }}>
-      <div
-        style={{
-          margin: "0 0 4px",
-          fontSize: "13px",
-          fontWeight: 600,
-          display: "flex",
-          alignItems: "baseline",
-          gap: "8px",
-        }}
-      >
-        Replication
+    <div className="mt-4">
+      <div className="fw-semibold mb-2">
+        Replication{" "}
         <a
           href="https://www.reduct.store/docs/guides/data-replication"
           target="_blank"
           rel="noreferrer"
-          style={{ fontSize: "12px", fontWeight: 400, color: "#0078d4" }}
+          className="small fw-normal"
         >
           docs
         </a>
       </div>
+      <ReplicationStatus dev={dev} />
       {reps.map((r, i) => (
-        <div
-          key={i}
-          style={{
-            border: "1px solid #eee",
-            borderRadius: "4px",
-            padding: "6px",
-            margin: "6px 0",
-          }}
-        >
-          <Field label="Name">
-            <input
-              style={input}
-              value={r.name || ""}
-              onChange={(e) => setRep(i, "name", e.target.value)}
-            />
-          </Field>
-          <Field label="Source bucket">
-            <input
-              style={input}
-              value={r.srcBucket || ""}
-              onChange={(e) => setRep(i, "srcBucket", e.target.value)}
-            />
-          </Field>
-          <Field label="Dest bucket">
-            <input
-              style={input}
-              value={r.dstBucket || ""}
-              onChange={(e) => setRep(i, "dstBucket", e.target.value)}
-            />
-          </Field>
-          <Field label="Dest host">
-            <input
-              style={input}
-              placeholder="https://play.reduct.store"
-              value={r.dstHost || ""}
-              onChange={(e) => setRep(i, "dstHost", e.target.value)}
-            />
-          </Field>
-          <Field label="Dest token">
-            <input
-              style={input}
-              value={r.dstToken || ""}
-              onChange={(e) => setRep(i, "dstToken", e.target.value)}
-            />
-          </Field>
-          <Field label="Entries">
-            <input
-              style={input}
-              placeholder="entry1, entry2 (optional, all if empty)"
-              value={r.entries || ""}
-              onChange={(e) => setRep(i, "entries", e.target.value)}
-            />
-          </Field>
-          <Field label="Mode">
-            <select
-              style={select}
-              value={r.mode || "enabled"}
-              onChange={(e) => setRep(i, "mode", e.target.value)}
+        <Card key={i} className="mb-2 bg-body-tertiary">
+          <Card.Body className="py-2">
+            <Field label="Name">
+              <Form.Control
+                value={r.name || ""}
+                onChange={(e) => setRep(i, "name", e.target.value)}
+              />
+            </Field>
+            <Field label="Source bucket">
+              <Form.Control
+                value={r.srcBucket || ""}
+                onChange={(e) => setRep(i, "srcBucket", e.target.value)}
+              />
+            </Field>
+            <Field label="Dest bucket">
+              <Form.Control
+                value={r.dstBucket || ""}
+                onChange={(e) => setRep(i, "dstBucket", e.target.value)}
+              />
+            </Field>
+            <Field label="Dest host">
+              <Form.Control
+                placeholder="https://play.reduct.store"
+                value={r.dstHost || ""}
+                onChange={(e) => setRep(i, "dstHost", e.target.value)}
+              />
+            </Field>
+            <Field label="Dest token">
+              <Form.Control
+                value={r.dstToken || ""}
+                onChange={(e) => setRep(i, "dstToken", e.target.value)}
+              />
+            </Field>
+            <Field label="Entries">
+              <Form.Control
+                placeholder="entry1, entry2 (optional, all if empty)"
+                value={r.entries || ""}
+                onChange={(e) => setRep(i, "entries", e.target.value)}
+              />
+            </Field>
+            <Field label="Mode">
+              <Form.Select
+                style={{ maxWidth: "160px" }}
+                value={r.mode || "enabled"}
+                onChange={(e) => setRep(i, "mode", e.target.value)}
+              >
+                <option value="enabled">enabled</option>
+                <option value="paused">paused</option>
+                <option value="disabled">disabled</option>
+              </Form.Select>
+            </Field>
+            <Field label='Filter, "when"'>
+              <GrowTextarea
+                value={r.when || ""}
+                onChange={(e) => setRep(i, "when", e.target.value)}
+                placeholder='JSON condition, e.g. {"&temperature": {"$gt": 10}}'
+                minRows={2}
+              />
+            </Field>
+            <Button
+              variant="outline-danger"
+              size="sm"
+              onClick={() => removeRep(i)}
             >
-              <option value="enabled">enabled</option>
-              <option value="paused">paused</option>
-              <option value="disabled">disabled</option>
-            </select>
-          </Field>
-          <div style={{ margin: "4px 0" }}>
-            <label style={{ fontSize: "13px" }}>
-              Filter, "when" (optional)
-            </label>
-            <GrowTextarea
-              value={r.when || ""}
-              onChange={(e) => setRep(i, "when", e.target.value)}
-              placeholder='JSON condition, e.g. {"&temperature": {"$gt": 10}}'
-              minRows={2}
-            />
-          </div>
-          <button style={btn} onClick={() => removeRep(i)}>
-            Remove task
-          </button>
-        </div>
+              Remove task
+            </Button>
+          </Card.Body>
+        </Card>
       ))}
       {orphanReps.length > 0 && (
-        <p style={{ ...hint, color: "#b26a00" }}>
+        <p className="small text-warning-emphasis">
           ⚠ {orphanReps.map((n) => `"${n}"`).join(", ")}{" "}
           {orphanReps.length > 1 ? "are" : "is"} on the device but not managed
           here (e.g. created manually).
         </p>
       )}
-      <button style={btn} onClick={addRep}>
+      <Button variant="outline-secondary" size="sm" onClick={addRep}>
         Add replication task
-      </button>
+      </Button>
     </div>
   );
 }
 
-export function BridgeSection({
-  cfg,
-  setCfg,
-  dirty,
-  dev,
-  billingValid,
-  onControl,
-  onApply,
-}) {
+export function BridgeSection({ cfg, setCfg, dirty, dev }) {
   const bridge = cfg.bridge;
   const setBridge = (k, v) => setCfg({ ...cfg, bridge: { ...bridge, [k]: v } });
-
   const env = bridge.env || [];
   const setEnv = (i, k, v) =>
     setBridge(
       "env",
       env.map((e, j) => (j === i ? { ...e, [k]: v } : e)),
-    );
-  const addEnv = () => setBridge("env", [...env, { key: "", value: "" }]);
-  const removeEnv = (i) =>
-    setBridge(
-      "env",
-      env.filter((_, j) => j !== i),
     );
 
   // Switching variant also swaps the preset, and re-renders the TOML only when
@@ -342,185 +319,129 @@ export function BridgeSection({
   };
   const rendered = renderPreset(bridge.preset, cfg.store, bridge.variant);
 
-  if (!bridge.enabled) {
-    return (
-      <div style={sectionStyle(dirty)}>
-        <SectionHead
-          title="ReductBridge"
-          href="https://www.reduct.store/docs/reduct-bridge"
-        >
-          <ComponentState disabled />
-        </SectionHead>
-        <button
-          style={barPrimary(billingValid)}
-          disabled={!billingValid}
-          onClick={() =>
-            onApply("start-bridge", {
-              ...cfg,
-              bridge: { ...bridge, enabled: true },
-            })
-          }
-        >
-          Enable ReductBridge
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div style={sectionStyle(dirty)}>
+    <Card {...cardProps(dirty)}>
       <SectionHead
         title="ReductBridge"
         href="https://www.reduct.store/docs/reduct-bridge"
       >
-        <ComponentState
-          running={!!dev.bridge?.running}
-          error={dev.bridge?.error}
-        />
+        <span className="d-flex align-items-center gap-3">
+          <StatusBadge state={bridgeState(dev, bridge.enabled)} />
+          <Form.Check
+            type="switch"
+            id="bridge-enabled"
+            label="Enabled"
+            checked={!!bridge.enabled}
+            onChange={(e) => setBridge("enabled", e.target.checked)}
+          />
+        </span>
       </SectionHead>
-      <Field label="Variant">
-        <select
-          style={select}
-          value={bridge.variant}
-          onChange={(e) => changeVariant(e.target.value)}
-        >
-          {VARIANTS.map((v) => (
-            <option key={v.value} value={v.value}>
-              {v.label}
-            </option>
-          ))}
-        </select>
-      </Field>
-      {bridge.variant === "iot" && (
-        <Field label="Protocol">
-          <select
-            style={select}
-            value={bridge.preset}
-            onChange={(e) => setBridge("preset", e.target.value)}
-          >
-            {PRESETS.filter((p) =>
-              ["mqtt", "http", "shell"].includes(p.value),
-            ).map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-      )}
+      {bridge.enabled && (
+        <Card.Body>
+          <Field label="Variant">
+            <Form.Select
+              style={{ maxWidth: "240px" }}
+              value={bridge.variant}
+              onChange={(e) => changeVariant(e.target.value)}
+            >
+              {VARIANTS.map((v) => (
+                <option key={v.value} value={v.value}>
+                  {v.label}
+                </option>
+              ))}
+            </Form.Select>
+          </Field>
+          {bridge.variant === "iot" && (
+            <Field label="Protocol">
+              <Form.Select
+                style={{ maxWidth: "240px" }}
+                value={bridge.preset}
+                onChange={(e) => setBridge("preset", e.target.value)}
+              >
+                {PRESETS.filter((p) =>
+                  ["mqtt", "http", "shell"].includes(p.value),
+                ).map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </Form.Select>
+            </Field>
+          )}
 
-      <div style={{ margin: "10px 0 4px", fontSize: "13px", fontWeight: 600 }}>
-        Extra environment variables (optional)
-      </div>
-      {env.map((e, i) => (
-        <div key={i} style={row}>
-          <input
-            style={{ ...input, maxWidth: "220px" }}
+          <EnvEditor
+            env={env}
+            setEnv={setEnv}
+            addEnv={() => setBridge("env", [...env, { key: "", value: "" }])}
+            removeEnv={(i) =>
+              setBridge(
+                "env",
+                env.filter((_, j) => j !== i),
+              )
+            }
             placeholder={
               bridge.variant.startsWith("ros2") ? "ROS_DOMAIN_ID" : "RUST_LOG"
             }
-            value={e.key || ""}
-            onChange={(ev) => setEnv(i, "key", ev.target.value)}
           />
-          <span>=</span>
-          <input
-            style={input}
-            placeholder="value"
-            value={e.value || ""}
-            onChange={(ev) => setEnv(i, "value", ev.target.value)}
-          />
-          <button style={btn} onClick={() => removeEnv(i)}>
-            ×
-          </button>
-        </div>
-      ))}
-      <button style={btn} onClick={addEnv}>
-        Add variable
-      </button>
 
-      <div style={{ margin: "6px 0" }}>
-        <label
-          style={{ fontSize: "13px", display: "block", marginBottom: "6px" }}
-        >
-          config.toml
-        </label>
-        <GrowTextarea
-          value={bridge.toml || rendered}
-          onChange={(e) =>
-            setBridge("toml", e.target.value === rendered ? "" : e.target.value)
-          }
-          placeholder={`# empty → uses the ${bridge.preset} preset`}
-          minRows={3}
-        />
-      </div>
-      <ComponentControls
-        component="bridge"
-        running={!!dev.bridge?.running}
-        canStop={!!dev.bridge?.running}
-        billingValid={billingValid}
-        onControl={onControl}
-        disable={
-          <button
-            style={barBtn(true)}
-            onClick={() =>
-              onApply("stop-bridge", {
-                ...cfg,
-                bridge: { ...bridge, enabled: false },
-              })
+          <div className="fw-semibold mt-3 mb-2">config.toml</div>
+          <GrowTextarea
+            value={bridge.toml || rendered}
+            onChange={(e) =>
+              setBridge(
+                "toml",
+                e.target.value === rendered ? "" : e.target.value,
+              )
             }
-          >
-            Disable ReductBridge
-          </button>
-        }
-      />
-      <ComponentLog name="ReductBridge" log={dev.bridge?.log} />
-    </div>
+            placeholder={`# empty → uses the ${bridge.preset} preset`}
+            minRows={3}
+          />
+
+          <ComponentLog name="ReductBridge" log={dev.bridge?.log} />
+        </Card.Body>
+      )}
+    </Card>
   );
 }
 
-export function ApplyBar({ dirty, billingValid, onApply, onDiscard }) {
-  const enabled = dirty && billingValid;
+export function ControlBar({
+  dirty,
+  billingValid,
+  canStart,
+  canStop,
+  onControl,
+  onApply,
+  onDiscard,
+}) {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-      <button
-        style={enabled ? barPrimary(true) : barBtn(false)}
-        disabled={!enabled}
+    <div className="d-flex flex-wrap gap-2 mb-3">
+      <Button
+        variant="outline-secondary"
+        disabled={!billingValid || !canStart}
+        onClick={() => onControl("start")}
+      >
+        Start
+      </Button>
+      <Button
+        variant="outline-secondary"
+        disabled={!canStop}
+        onClick={() => onControl("stop")}
+      >
+        Stop
+      </Button>
+      <Button
+        variant="primary"
+        className="ms-auto"
+        disabled={!billingValid || !dirty}
         onClick={onApply}
       >
         Apply &amp; restart
-      </button>
-      <button style={barBtn(dirty)} disabled={!dirty} onClick={onDiscard}>
+      </Button>
+      <Button variant="outline-secondary" disabled={!dirty} onClick={onDiscard}>
         Discard
-      </button>
+      </Button>
     </div>
   );
-}
-
-function ComponentState({
-  running,
-  error,
-  disabled = false,
-  starting = false,
-}) {
-  const state = disabled
-    ? "Disabled"
-    : error
-      ? "Error"
-      : starting
-        ? "Starting"
-        : running
-          ? "Running"
-          : "Stopped";
-  const color = error
-    ? "#b00020"
-    : starting
-      ? "#b06000"
-      : running
-        ? "#247a3f"
-        : disabled
-          ? "#666"
-          : "#555";
-  return <span style={{ fontSize: "12px", color }}>Status: {state}</span>;
 }
 
 function ReplicationStatus({ dev }) {
@@ -529,46 +450,8 @@ function ReplicationStatus({ dev }) {
   const active = reps.filter((r) => r.is_active).length;
   const pending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
   return (
-    <div style={{ fontSize: "12px", color: "#555", margin: "8px 0" }}>
-      Replication: {active}/{reps.length} active · {pending} pending
-    </div>
-  );
-}
-
-function ComponentControls({
-  component,
-  running,
-  canStop,
-  billingValid,
-  onControl,
-  disable,
-}) {
-  return (
-    <div style={{ marginTop: "10px" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-        <button
-          style={barBtn(billingValid && !running)}
-          disabled={!billingValid || running}
-          onClick={() => onControl(`start-${component}`)}
-        >
-          Start
-        </button>
-        <button
-          style={barBtn(canStop)}
-          disabled={!canStop}
-          onClick={() => onControl(`stop-${component}`)}
-        >
-          Stop
-        </button>
-        <button
-          style={barBtn(billingValid)}
-          disabled={!billingValid}
-          onClick={() => onControl(`restart-${component}`)}
-        >
-          Restart
-        </button>
-        {disable}
-      </div>
+    <div className="small text-secondary mb-2">
+      {active}/{reps.length} active · {pending} pending
     </div>
   );
 }

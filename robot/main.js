@@ -16,7 +16,6 @@ const {
   deletePersistedToken,
 } = require("./lib/billing-token");
 const {
-  effectiveAction,
   requiresBilling,
   runComponentAction,
   stopAll,
@@ -36,7 +35,7 @@ let lastError = null;
 let lastRequestId = null;
 let lastBillingToken = null;
 let chain = Promise.resolve();
-let startedStoreConfig = null;
+
 let shuttingDown = false;
 
 function enqueue(fn) {
@@ -61,7 +60,7 @@ const billingGate = isBillingBypassed
         }),
       onEntitled: () => {
         if (mqttSync && config.autoStart) {
-          enqueue(() => runCommand("restart-store"));
+          enqueue(() => runCommand("start"));
         }
       },
       onDenied: (reason) => {
@@ -146,7 +145,6 @@ async function runCommand(action, patch) {
       publishDetails();
     }
     const snapshot = config;
-    action = effectiveAction(action, snapshot, startedStoreConfig);
     if (requiresBilling(action) && !hasBillingEntitlement()) {
       throw new Error("a valid Transitive billing token is required");
     }
@@ -157,9 +155,6 @@ async function runCommand(action, patch) {
       billingToken: lastBillingToken,
       shouldAbort: () => shuttingDown,
     });
-    if (action === "start-store" || action === "restart-store") {
-      startedStoreConfig = JSON.stringify(snapshot.store);
-    }
     lastError = null;
     await publishStatus(message);
   } catch (error) {
@@ -297,7 +292,7 @@ async function boot() {
     if (config.autoStart) {
       if (hasBillingEntitlement()) {
         log.info("autoStart: starting");
-        enqueue(() => runCommand("restart-store"));
+        enqueue(() => runCommand("start"));
       } else {
         await publishStatus(
           "waiting for a valid Transitive billing token",

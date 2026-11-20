@@ -1,12 +1,16 @@
 import React from "react";
-import { row, labelStyle } from "./styles";
+import { Accordion, Badge, Card, Col, Form, Row } from "react-bootstrap";
 
 export function Field({ label, children }) {
   return (
-    <div style={row}>
-      <label style={labelStyle}>{label}</label>
-      {children}
-    </div>
+    <Form.Group as={Row} className="mb-2 align-items-center">
+      <Form.Label column sm={3} className="text-secondary">
+        {label}
+      </Form.Label>
+      <Col sm={9} className="d-flex gap-2 align-items-center">
+        {children}
+      </Col>
+    </Form.Group>
   );
 }
 
@@ -19,78 +23,67 @@ export function GrowTextarea({ value, onChange, placeholder, minRows = 2 }) {
     el.style.height = `${el.scrollHeight}px`;
   }, [value]);
   return (
-    <textarea
+    <Form.Control
+      as="textarea"
       ref={ref}
+      className="font-monospace"
+      style={{ resize: "none", overflow: "hidden", fontSize: "0.85rem" }}
       value={value}
       onChange={onChange}
       placeholder={placeholder}
       rows={minRows}
-      style={{
-        width: "100%",
-        boxSizing: "border-box",
-        resize: "none",
-        overflow: "hidden",
-        fontFamily: "monospace",
-        fontSize: "12px",
-        padding: "4px 6px",
-      }}
     />
   );
 }
 
 export function SectionHead({ title, href, children }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "baseline",
-        gap: "8px",
-        marginBottom: "8px",
-      }}
-    >
-      <h5 style={{ margin: 0, fontSize: "14px" }}>{title}</h5>
+    <Card.Header className="d-flex align-items-center gap-2">
+      <span className="fw-semibold">{title}</span>
       {href && (
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          style={{ fontSize: "12px", color: "#0078d4" }}
-        >
+        <a href={href} target="_blank" rel="noreferrer" className="small">
           docs
         </a>
       )}
-      {children}
-    </div>
+      <span className="ms-auto">{children}</span>
+    </Card.Header>
   );
 }
 
+const STATES = {
+  disabled: ["secondary", "Disabled"],
+  error: ["danger", "Error"],
+  starting: ["warning", "Starting"],
+  running: ["success", "Running"],
+  stopped: ["secondary", "Stopped"],
+};
+
+export function StatusBadge({ state }) {
+  const [bg, label] = STATES[state] || STATES.stopped;
+  return <Badge bg={bg}>{label}</Badge>;
+}
+
 export function ComponentLog({ name, log }) {
-  const details = React.useRef(null);
   const output = React.useRef(null);
-  const scrollToEnd = () => {
-    if (details.current?.open && output.current) {
-      output.current.scrollTop = output.current.scrollHeight;
-    }
-  };
-  React.useLayoutEffect(scrollToEnd, [log]);
+  React.useLayoutEffect(() => {
+    if (output.current) output.current.scrollTop = output.current.scrollHeight;
+  }, [log]);
 
   if (!log) return null;
   return (
-    <details ref={details} onToggle={scrollToEnd} style={{ marginTop: "14px" }}>
-      <summary>{name} logs</summary>
-      <pre
-        ref={output}
-        style={{
-          whiteSpace: "pre-wrap",
-          fontSize: "12px",
-          maxHeight: "240px",
-          maxWidth: "560px",
-          boxSizing: "border-box",
-          overflow: "auto",
-        }}
-      >
-        {log}
-      </pre>
-    </details>
+    <Accordion className="mt-3">
+      <Accordion.Item eventKey="log">
+        <Accordion.Header>{name} logs</Accordion.Header>
+        <Accordion.Body>
+          <pre
+            ref={output}
+            className="mb-0 small"
+            style={{ whiteSpace: "pre-wrap", maxHeight: "240px" }}
+          >
+            {log}
+          </pre>
+        </Accordion.Body>
+      </Accordion.Item>
+    </Accordion>
   );
 }

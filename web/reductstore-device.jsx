@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { Alert, Button, Spinner } from "react-bootstrap";
 import { createWebComponent, useTransitive } from "@transitive-sdk/utils-web";
 import { validateConfig } from "./lib/validate";
-import { StoreSection, BridgeSection, ApplyBar } from "./lib/sections";
-import { btn } from "./lib/styles";
+import { StoreSection, BridgeSection, ControlBar } from "./lib/sections";
 
 const [, capabilityName] = TR_PKG_NAME.split("/");
 
@@ -95,49 +95,46 @@ const Device = ({ jwt, id, host, ssl }) => {
   const bridgeDirty = !!cfg && !!remote && differs(cfg.bridge, remote.bridge);
 
   const billingValid = device.billing?.state === "valid";
+  const storeRunning = !!device.store?.running;
+  const bridgeRunning = !!device.bridge?.running;
+  const bridgeEnabled = !!(remote || cfg)?.bridge?.enabled;
+  const canStart = !storeRunning || (bridgeEnabled && !bridgeRunning);
+  const canStop = storeRunning || bridgeRunning;
 
   return (
     <div>
       {!billingValid && (
-        <p style={{ fontSize: "13px", color: "#d13438" }}>
-          Billing: invalid. Controls are disabled until a valid billing token
+        <Alert variant="danger" className="py-2">
+          Billing is invalid. Controls stay disabled until a valid billing token
           arrives.
-        </p>
+        </Alert>
       )}
 
       {feedback && (
-        <pre
-          style={{
-            whiteSpace: "pre-wrap",
-            fontSize: "12px",
-            margin: "6px 0",
-            padding: "6px 8px",
-            borderRadius: "4px",
-            background: "#f4f4f4",
-            color: "#555",
-            border: "1px solid #eee",
-          }}
-        >
+        <Alert variant="secondary" className="py-2 small">
           {feedback}
-        </pre>
+        </Alert>
       )}
 
       {!cfg ? (
-        <div style={{ color: "#888" }}>
-          <p>Loading configuration…</p>
-          {waited && (
-            <p style={{ fontSize: "12px" }}>
+        <div className="text-secondary d-flex align-items-center gap-2">
+          <Spinner animation="border" size="sm" />
+          {waited ? (
+            <span>
               The device has not reported its configuration yet. Make sure the
-              capability is running on the robot.
-              <button
-                style={btn}
+              capability is running on the robot.{" "}
+              <Button
+                variant="outline-secondary"
+                size="sm"
                 onClick={() =>
                   mqttSync && mqttSync.subscribe(`${prefixVersion}/device`)
                 }
               >
                 Retry
-              </button>
-            </p>
+              </Button>
+            </span>
+          ) : (
+            <span>Loading configuration…</span>
           )}
         </div>
       ) : (
@@ -148,22 +145,20 @@ const Device = ({ jwt, id, host, ssl }) => {
             dirty={storeDirty}
             dev={device}
             remote={remote}
-            billingValid={billingValid}
-            onControl={control}
           />
           <BridgeSection
             cfg={cfg}
             setCfg={setCfg}
             dirty={bridgeDirty}
             dev={device}
-            billingValid={billingValid}
-            onControl={control}
-            onApply={apply}
           />
-          <ApplyBar
+          <ControlBar
             dirty={storeDirty || bridgeDirty}
             billingValid={billingValid}
-            onApply={() => apply("restart-store")}
+            canStart={canStart}
+            canStop={canStop}
+            onControl={control}
+            onApply={() => apply("restart")}
             onDiscard={discardAll}
           />
         </>

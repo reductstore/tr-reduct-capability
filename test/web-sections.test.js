@@ -11,7 +11,7 @@ function loadSections() {
     bundle: true,
     format: "cjs",
     platform: "node",
-    external: ["react"],
+    external: ["react", "react-dom"],
     write: false,
   });
   const module = { exports: {} };
@@ -35,10 +35,34 @@ const config = {
     env: [],
     replications: [],
   },
-  bridge: {},
+  bridge: {
+    enabled: true,
+    variant: "iot",
+    preset: "mqtt",
+    env: [],
+    toml: "",
+  },
 };
 
-test("shows a discrete state on each component card", () => {
+test("uses Transitive's Bootstrap controls instead of ad-hoc styling", () => {
+  const { StoreSection } = loadSections();
+  const markup = renderToStaticMarkup(
+    React.createElement(StoreSection, {
+      cfg: config,
+      setCfg() {},
+      dirty: false,
+      dev: { store: { running: true, alive: true }, bridge: {} },
+      remote: config,
+    }),
+  );
+  assert.match(markup, /class="mb-3 card"/);
+  assert.match(markup, /class="[^"]*card-header"/);
+  assert.match(markup, /<input[^>]*class="form-control"/);
+  assert.match(markup, /<select[^>]*class="form-select"/);
+  assert.doesNotMatch(markup, /style="[^"]*font-size:13px/);
+});
+
+test("badges each component state the way other capabilities do", () => {
   const { StoreSection, BridgeSection } = loadSections();
   const storeMarkup = renderToStaticMarkup(
     React.createElement(StoreSection, {
@@ -47,30 +71,56 @@ test("shows a discrete state on each component card", () => {
       dirty: false,
       dev: { store: { running: true, alive: false }, bridge: {} },
       remote: config,
-      billingValid: true,
-      onControl() {},
     }),
   );
   const bridgeMarkup = renderToStaticMarkup(
     React.createElement(BridgeSection, {
-      cfg: {
-        ...config,
-        bridge: {
-          enabled: true,
-          variant: "iot",
-          preset: "mqtt",
-          env: [],
-          toml: "",
-        },
-      },
+      cfg: config,
       setCfg() {},
       dirty: false,
-      dev: { store: {}, bridge: { enabled: true, running: true } },
-      billingValid: true,
-      onControl() {},
+      dev: { store: {}, bridge: { running: true } },
+    }),
+  );
+  const disabledMarkup = renderToStaticMarkup(
+    React.createElement(BridgeSection, {
+      cfg: { ...config, bridge: { ...config.bridge, enabled: false } },
+      setCfg() {},
+      dirty: false,
+      dev: { store: {}, bridge: {} },
     }),
   );
 
-  assert.match(storeMarkup, /ReductStore.*Status: Starting/s);
-  assert.match(bridgeMarkup, /ReductBridge.*Status: Running/s);
+  assert.match(storeMarkup, /badge[^"]*bg-warning">Starting</);
+  assert.match(bridgeMarkup, /badge[^"]*bg-success">Running</);
+  assert.match(disabledMarkup, /badge[^"]*bg-secondary">Disabled</);
+});
+
+test("marks a card with unsaved changes", () => {
+  const { StoreSection } = loadSections();
+  const markup = renderToStaticMarkup(
+    React.createElement(StoreSection, {
+      cfg: config,
+      setCfg() {},
+      dirty: true,
+      dev: { store: {}, bridge: {} },
+      remote: config,
+    }),
+  );
+
+  assert.match(markup, /class="mb-3 card border-warning"/);
+});
+
+test("hides Bridge configuration while the Bridge is switched off", () => {
+  const { BridgeSection } = loadSections();
+  const markup = renderToStaticMarkup(
+    React.createElement(BridgeSection, {
+      cfg: { ...config, bridge: { ...config.bridge, enabled: false } },
+      setCfg() {},
+      dirty: false,
+      dev: { store: {}, bridge: {} },
+    }),
+  );
+
+  assert.match(markup, /form-check-input/);
+  assert.doesNotMatch(markup, /config\.toml/);
 });
