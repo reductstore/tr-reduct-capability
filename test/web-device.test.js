@@ -239,3 +239,64 @@ test("discarding restores both Store and Bridge to the device config", () => {
 
   act(() => root.unmount());
 });
+
+test("an incomplete replication task blocks Apply and says why", () => {
+  const { root, sent } = mountDevice();
+
+  const addTask = root.root.findAll(
+    (node) =>
+      node.type === "button" && node.children[0] === "Add replication task",
+  )[0];
+  act(() => addTask.props.onClick());
+
+  const apply = button(root, "Apply & restart")[0];
+  assert.equal(apply.props.disabled, true, "cannot apply an invalid config");
+  assert.equal(commandsIn(sent).length, 0);
+
+  const reasons = root.root
+    .findAll((node) => node.type === "li")
+    .map((node) => node.children.join(""));
+  assert.ok(
+    reasons.some((r) => /Replication #1: name is required/.test(r)),
+    `expected a visible reason, got ${JSON.stringify(reasons)}`,
+  );
+
+  act(() => root.unmount());
+});
+
+test("completing the task re-enables Apply", () => {
+  const { root, sent } = mountDevice();
+
+  act(() =>
+    root.root
+      .findAll(
+        (node) =>
+          node.type === "button" && node.children[0] === "Add replication task",
+      )[0]
+      .props.onClick(),
+  );
+
+  const emptyFields = () =>
+    root.root.findAll(
+      (node) => node.type === "input" && node.props.value === "",
+    );
+  act(() => emptyFields()[0].props.onChange({ target: { value: "backup" } }));
+  act(() =>
+    emptyFields()[0].props.onChange({ target: { value: "central-data" } }),
+  );
+  act(() =>
+    emptyFields()[0].props.onChange({
+      target: { value: "https://central.example.com" },
+    }),
+  );
+
+  assert.equal(root.root.findAll((node) => node.type === "li").length, 0);
+  assert.equal(button(root, "Apply & restart")[0].props.disabled, false);
+
+  act(() => button(root, "Apply & restart")[0].props.onClick());
+  const commands = commandsIn(sent);
+  assert.equal(commands.length, 1);
+  assert.equal(commands[0].config.store.replications[0].name, "backup");
+
+  act(() => root.unmount());
+});

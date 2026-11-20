@@ -404,6 +404,7 @@ export function BridgeSection({ cfg, setCfg, dirty, dev }) {
 
 export function ControlBar({
   dirty,
+  issues,
   billingValid,
   canStart,
   canStop,
@@ -411,33 +412,47 @@ export function ControlBar({
   onApply,
   onDiscard,
 }) {
+  const blocked = issues.length > 0;
   return (
-    <div className="d-flex flex-wrap gap-2 mb-3">
-      <Button
-        variant="outline-secondary"
-        disabled={!billingValid || !canStart}
-        onClick={() => onControl("start")}
-      >
-        Start
-      </Button>
-      <Button
-        variant="outline-secondary"
-        disabled={!canStop}
-        onClick={() => onControl("stop")}
-      >
-        Stop
-      </Button>
-      <Button
-        variant="primary"
-        className="ms-auto"
-        disabled={!billingValid || !dirty}
-        onClick={onApply}
-      >
-        Apply &amp; restart
-      </Button>
-      <Button variant="outline-secondary" disabled={!dirty} onClick={onDiscard}>
-        Discard
-      </Button>
+    <div className="mb-3">
+      {dirty && blocked && (
+        <ul className="small text-danger ps-3 mb-2">
+          {issues.map((issue) => (
+            <li key={issue}>{issue}</li>
+          ))}
+        </ul>
+      )}
+      <div className="d-flex flex-wrap align-items-center gap-2">
+        <Button
+          variant="outline-secondary"
+          disabled={!billingValid || !canStart}
+          onClick={() => onControl("start")}
+        >
+          Start
+        </Button>
+        <Button
+          variant="outline-secondary"
+          disabled={!canStop}
+          onClick={() => onControl("stop")}
+        >
+          Stop
+        </Button>
+        <div className="vr mx-2" />
+        <Button
+          variant="primary"
+          disabled={!billingValid || !dirty || blocked}
+          onClick={onApply}
+        >
+          Apply &amp; restart
+        </Button>
+        <Button
+          variant="outline-secondary"
+          disabled={!dirty}
+          onClick={onDiscard}
+        >
+          Discard
+        </Button>
+      </div>
     </div>
   );
 }

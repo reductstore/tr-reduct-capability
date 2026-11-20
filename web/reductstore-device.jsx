@@ -17,7 +17,6 @@ const Device = ({ jwt, id, host, ssl }) => {
   });
 
   const [cfg, setCfg] = useState(null);
-  const [feedback, setFeedback] = useState(null);
   const [waited, setWaited] = useState(false);
 
   useEffect(() => {
@@ -49,11 +48,6 @@ const Device = ({ jwt, id, host, ssl }) => {
     return () => clearTimeout(t);
   }, []);
 
-  const flash = (msg) => {
-    setFeedback(msg);
-    setTimeout(() => setFeedback(null), 4000);
-  };
-
   const sendCommand = (action, config) => {
     if (!mqttSync) return;
     mqttSync.data.update(
@@ -70,11 +64,6 @@ const Device = ({ jwt, id, host, ssl }) => {
     sendCommand(action);
   };
   const apply = (action, nextCfg = cfg) => {
-    const nextIssues = validateConfig(nextCfg);
-    if (nextIssues.length > 0) {
-      flash(nextIssues[0]);
-      return;
-    }
     setCfg(nextCfg);
     sendCommand(action, nextCfg);
   };
@@ -93,6 +82,7 @@ const Device = ({ jwt, id, host, ssl }) => {
   const differs = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
   const storeDirty = !!cfg && !!remote && differs(cfg.store, remote.store);
   const bridgeDirty = !!cfg && !!remote && differs(cfg.bridge, remote.bridge);
+  const issues = cfg ? validateConfig(cfg) : [];
 
   const billingValid = device.billing?.state === "valid";
   const storeRunning = !!device.store?.running;
@@ -110,11 +100,6 @@ const Device = ({ jwt, id, host, ssl }) => {
         </Alert>
       )}
 
-      {feedback && (
-        <Alert variant="secondary" className="py-2 small">
-          {feedback}
-        </Alert>
-      )}
 
       {!cfg ? (
         <div className="text-secondary d-flex align-items-center gap-2">
@@ -154,6 +139,7 @@ const Device = ({ jwt, id, host, ssl }) => {
           />
           <ControlBar
             dirty={storeDirty || bridgeDirty}
+            issues={issues}
             billingValid={billingValid}
             canStart={canStart}
             canStop={canStop}
