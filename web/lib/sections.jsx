@@ -413,6 +413,7 @@ export function ControlBar({
   onDiscard,
 }) {
   const blocked = issues.length > 0;
+  const canApply = billingValid && dirty && !blocked;
   return (
     <div className="mb-3">
       {dirty && blocked && (
@@ -439,8 +440,8 @@ export function ControlBar({
         </Button>
         <div className="vr mx-2" />
         <Button
-          variant="primary"
-          disabled={!billingValid || !dirty || blocked}
+          variant={canApply ? "primary" : "outline-secondary"}
+          disabled={!canApply}
           onClick={onApply}
         >
           Apply &amp; restart

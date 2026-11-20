@@ -124,3 +124,38 @@ test("hides Bridge configuration while the Bridge is switched off", () => {
   assert.match(markup, /form-check-input/);
   assert.doesNotMatch(markup, /config\.toml/);
 });
+
+test("the apply button only looks actionable when it is", () => {
+  const { ControlBar } = loadSections();
+  const render = (props) =>
+    renderToStaticMarkup(
+      React.createElement(ControlBar, {
+        dirty: false,
+        issues: [],
+        billingValid: true,
+        canStart: false,
+        canStop: true,
+        onControl() {},
+        onApply() {},
+        onDiscard() {},
+        ...props,
+      }),
+    );
+
+  assert.match(render({ dirty: true }), /btn-primary"[^>]*>Apply/);
+  assert.match(
+    render({}),
+    /disabled=""[^>]*btn-outline-secondary">Apply/,
+    "idle apply must not look actionable",
+  );
+  assert.match(
+    render({ dirty: true, issues: ["Replication #1: name is required"] }),
+    /disabled=""[^>]*btn-outline-secondary">Apply/,
+    "blocked apply must not look actionable",
+  );
+  assert.match(
+    render({ dirty: true, billingValid: false }),
+    /disabled=""[^>]*btn-outline-secondary">Apply/,
+    "unbilled apply must not look actionable",
+  );
+});
