@@ -144,6 +144,16 @@ test("the apply button only looks actionable when it is", () => {
 
   assert.match(render({ dirty: true }), /btn-primary"[^>]*>Apply/);
   assert.match(
+    render({ canStart: true }),
+    /btn-primary"[^>]*>Start/,
+    "a pressable start must look actionable",
+  );
+  assert.match(
+    render({}),
+    /disabled=""[^>]*btn-outline-secondary">Start/,
+    "an idle start must not look actionable",
+  );
+  assert.match(
     render({}),
     /disabled=""[^>]*btn-outline-secondary">Apply/,
     "idle apply must not look actionable",

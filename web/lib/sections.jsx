@@ -414,6 +414,7 @@ export function ControlBar({
 }) {
   const blocked = issues.length > 0;
   const canApply = billingValid && dirty && !blocked;
+  const canStartNow = billingValid && canStart;
   return (
     <div className="mb-3">
       {dirty && blocked && (
@@ -425,8 +426,8 @@ export function ControlBar({
       )}
       <div className="d-flex flex-wrap align-items-center gap-2">
         <Button
-          variant="outline-secondary"
-          disabled={!billingValid || !canStart}
+          variant={canStartNow ? "primary" : "outline-secondary"}
+          disabled={!canStartNow}
           onClick={() => onControl("start")}
         >
           Start
