@@ -100,7 +100,6 @@ const Device = ({ jwt, id, host, ssl }) => {
         </Alert>
       )}
 
-
       {!cfg ? (
         <div className="text-secondary d-flex align-items-center gap-2">
           <Spinner animation="border" size="sm" />
