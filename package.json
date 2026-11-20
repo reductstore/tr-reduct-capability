@@ -43,7 +43,7 @@
     "lodash": "^4.17.21",
     "prettier": "^3.9.6",
     "react": "^18.3.1",
-    "react-bootstrap": "^2.1.2",
+    "react-bootstrap": "^2.10.10",
     "react-dom": "^18.3.1",
     "react-test-renderer": "^18.3.1",
     "react-web-component-style-loader": "^0.1.4-alpha"

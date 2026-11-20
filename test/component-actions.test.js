@@ -61,11 +61,11 @@ function dependencies({
   };
 }
 
-test("restart-store spawns nothing new once shutdown has begun", async () => {
+test("restart spawns nothing new once shutdown has begun", async () => {
   const options = dependencies();
   options.shouldAbort = () => true;
 
-  await runComponentAction("restart-store", options);
+  await runComponentAction("restart", options);
 
   assert.ok(!options.events.includes("store.start"));
   assert.ok(!options.events.includes("store.waitUntilAlive"));
@@ -75,9 +75,9 @@ test("restart-store spawns nothing new once shutdown has begun", async () => {
 test("restarting ReductStore restarts its enabled bridge after Store is ready", async () => {
   const options = dependencies();
 
-  const message = await runComponentAction("restart-store", options);
+  const message = await runComponentAction("restart", options);
 
-  assert.equal(message, "ReductStore restarted");
+  assert.equal(message, "restarted");
   assert.deepEqual(options.events, [
     "bridge.stop",
     "store.getReplications",
@@ -105,9 +105,9 @@ test("restart prunes persisted managed replications when the Store query fails o
     options.events.push(`store.writeManagedReplications:${names.join(",")}`);
   };
 
-  const message = await runComponentAction("restart-store", options);
+  const message = await runComponentAction("restart", options);
 
-  assert.equal(message, "ReductStore restarted");
+  assert.equal(message, "restarted");
   assert.deepEqual(options.events, [
     "bridge.stop",
     "store.getReplications",
@@ -140,7 +140,7 @@ test("restart tracks replications provisioned during Store startup", async () =>
     options.events.push(`store.writeManagedReplications:${names.join(",")}`);
   };
 
-  await runComponentAction("restart-store", options);
+  await runComponentAction("restart", options);
 
   assert.deepEqual(options.events, [
     "bridge.stop",
@@ -172,7 +172,7 @@ test("restart retains a replication after its deletion fails", async () => {
     options.events.push(`store.writeManagedReplications:${names.join(",")}`);
   };
 
-  await runComponentAction("restart-store", options);
+  await runComponentAction("restart", options);
 
   assert.deepEqual(options.events, [
     "bridge.stop",
@@ -189,9 +189,9 @@ test("restart retains a replication after its deletion fails", async () => {
 test("stopping ReductStore stops ReductBridge first", async () => {
   const options = dependencies();
 
-  const message = await runComponentAction("stop-store", options);
+  const message = await runComponentAction("stop", options);
 
-  assert.equal(message, "ReductStore stopped");
+  assert.equal(message, "stopped");
   assert.deepEqual(options.events, ["bridge.stop", "store.stop"]);
 });
 
@@ -202,7 +202,7 @@ test("stopping ReductStore reports a Store stop failure after stopping Bridge", 
     throw new Error("store boom");
   };
 
-  await assert.rejects(runComponentAction("stop-store", options), /store boom/);
+  await assert.rejects(runComponentAction("stop", options), /store boom/);
   assert.deepEqual(options.events, ["bridge.stop", "store.stop"]);
 });
 
