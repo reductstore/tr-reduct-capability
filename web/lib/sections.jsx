@@ -25,9 +25,7 @@ function cardProps(dirty) {
 function EnvEditor({ env, setEnv, addEnv, removeEnv, placeholder }) {
   return (
     <>
-      <div className="fw-semibold mt-3 mb-2">
-        Extra environment variables (optional)
-      </div>
+      <div className="fw-semibold mt-3 mb-2">Extra environment variables</div>
       {env.map((e, i) => (
         <InputGroup key={i} className="mb-2" style={{ maxWidth: "520px" }}>
           <Form.Control
@@ -236,7 +234,7 @@ export function ReplicationSection({ cfg, setCfg, dev, remote }) {
             </Field>
             <Field label="Entries">
               <Form.Control
-                placeholder="entry1, entry2 (optional, all if empty)"
+                placeholder="entry1, entry2 (all if empty)"
                 value={r.entries || ""}
                 onChange={(e) => setRep(i, "entries", e.target.value)}
               />
