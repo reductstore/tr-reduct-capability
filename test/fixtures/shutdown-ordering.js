@@ -57,7 +57,6 @@ Module._load = function (request, parent, isMain) {
   }
   if (request === "./lib/component-actions") {
     return {
-      effectiveAction: (action) => action,
       requiresBilling: () => false,
       runComponentAction: async (action) => {
         log(`start:${action}`);

@@ -1,6 +1,6 @@
 {
   "name": "@reductstore-tr/reductstore",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Records, stores, and syncs data from ROS, Zenoh, MQTT, and logs to ReductStore.",
   "main": "main.js",
   "type": "commonjs",
@@ -13,7 +13,7 @@
     "prepack": "transitiveDev prepack",
     "cloud": "npm --prefix cloud start",
     "dev": "npm --prefix robot run dev",
-    "dev:start": "transitiveDev tmux",
+    "dev:start": "TR_BILLING_BYPASS=true transitiveDev all",
     "dev:install": "npm --prefix robot install",
     "test": "npm --prefix robot run test",
     "lint": "eslint .",
@@ -30,7 +30,10 @@
     "versionNamespace": "minor"
   },
   "transitiverobotics": {
-    "title": "ReductStore"
+    "title": "ReductStore",
+    "price": {
+      "perMonth": 20
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -40,8 +43,9 @@
     "lodash": "^4.17.21",
     "prettier": "^3.9.6",
     "react": "^18.3.1",
-    "react-bootstrap": "^2.1.2",
+    "react-bootstrap": "^2.10.10",
     "react-dom": "^18.3.1",
+    "react-test-renderer": "^18.3.1",
     "react-web-component-style-loader": "^0.1.4-alpha"
   }
 }

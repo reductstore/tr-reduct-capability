@@ -24,26 +24,13 @@ async function startStore({ config, store, billingToken, shouldAbort }) {
   );
 }
 
-async function ensureStoreReady({ config, store }) {
-  const status = await store.status(config.store);
-  if (!status.running || !(await store.alive(config.store))) {
-    throw new Error("ReductStore must be running before starting ReductBridge");
-  }
+async function startBridge({ config, bridge, shouldAbort }) {
+  if (!config.bridge.enabled || shouldAbort?.()) return;
+  await bridge.start(config.bridge, { store: config.store });
 }
 
 function requiresBilling(action) {
-  return !["stop-store", "stop-bridge"].includes(action);
-}
-
-function effectiveAction(action, config, startedStoreConfig) {
-  if (
-    ["start-bridge", "stop-bridge", "restart-bridge"].includes(action) &&
-    startedStoreConfig != null &&
-    JSON.stringify(config.store) !== startedStoreConfig
-  ) {
-    return "restart-store";
-  }
-  return action;
+  return action !== "stop";
 }
 
 async function stopAll({ config, store, bridge }, { graceMs, onError } = {}) {
@@ -67,37 +54,30 @@ async function stopAll({ config, store, bridge }, { graceMs, onError } = {}) {
 async function runComponentAction(action, options) {
   const { config, store, bridge } = options;
   switch (action) {
-    case "start-store":
-      await startStore(options);
-      return "ReductStore started";
-    case "stop-store": {
+    case "start": {
+      const status = await store.status(config.store);
+      if (!status.running) {
+        await startStore(options);
+      } else if (!(await store.alive(config.store))) {
+        const ready = await store.waitUntilAlive(config.store, {
+          shouldAbort: options.shouldAbort,
+        });
+        if (!ready) throw new Error("ReductStore did not become ready in time");
+      }
+      const bridgeStatus = await bridge.status(config.bridge);
+      if (!bridgeStatus.running) await startBridge(options);
+      return "started";
+    }
+    case "stop": {
       const errors = await stopAll({ config, store, bridge });
       if (errors.length) throw errors[0];
-      return "ReductStore stopped";
+      return "stopped";
     }
-    case "restart-store":
+    case "restart":
       await bridge.stop(config.bridge);
       await startStore(options);
-      if (config.bridge.enabled && !options.shouldAbort?.()) {
-        await bridge.start(config.bridge, { store: config.store });
-      }
-      return "ReductStore restarted";
-    case "start-bridge":
-      await ensureStoreReady(options);
-      if (!options.shouldAbort?.()) {
-        await bridge.start(config.bridge, { store: config.store });
-      }
-      return "ReductBridge started";
-    case "stop-bridge":
-      await bridge.stop(config.bridge);
-      return "ReductBridge stopped";
-    case "restart-bridge":
-      await bridge.stop(config.bridge);
-      await ensureStoreReady(options);
-      if (config.bridge.enabled && !options.shouldAbort?.()) {
-        await bridge.start(config.bridge, { store: config.store });
-      }
-      return "ReductBridge restarted";
+      await startBridge(options);
+      return "restarted";
     default:
       throw new Error(`Unknown component action: ${action}`);
   }
@@ -106,6 +86,5 @@ async function runComponentAction(action, options) {
 module.exports = {
   requiresBilling,
   runComponentAction,
-  effectiveAction,
   stopAll,
 };

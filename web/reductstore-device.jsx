@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { Alert, Button, Spinner } from "react-bootstrap";
 import { createWebComponent, useTransitive } from "@transitive-sdk/utils-web";
 import { validateConfig } from "./lib/validate";
-import { StoreSection, BridgeSection } from "./lib/sections";
-import { btn } from "./lib/styles";
+import { StoreSection, BridgeSection, ControlBar } from "./lib/sections";
 
 const [, capabilityName] = TR_PKG_NAME.split("/");
 
@@ -17,7 +17,6 @@ const Device = ({ jwt, id, host, ssl }) => {
   });
 
   const [cfg, setCfg] = useState(null);
-  const [feedback, setFeedback] = useState(null);
   const [waited, setWaited] = useState(false);
 
   useEffect(() => {
@@ -49,19 +48,6 @@ const Device = ({ jwt, id, host, ssl }) => {
     return () => clearTimeout(t);
   }, []);
 
-  const flash = (msg) => {
-    setFeedback(msg);
-    setTimeout(() => setFeedback(null), 4000);
-  };
-  const commandLabel = {
-    "start-store": "Starting ReductStore",
-    "stop-store": "Stopping ReductStore",
-    "restart-store": "Restarting ReductStore",
-    "start-bridge": "Starting ReductBridge",
-    "stop-bridge": "Stopping ReductBridge",
-    "restart-bridge": "Restarting ReductBridge",
-  };
-
   const sendCommand = (action, config) => {
     if (!mqttSync) return;
     mqttSync.data.update(
@@ -76,21 +62,14 @@ const Device = ({ jwt, id, host, ssl }) => {
   };
   const control = (action) => {
     sendCommand(action);
-    flash(commandLabel[action]);
   };
   const apply = (action, nextCfg = cfg) => {
-    const nextIssues = validateConfig(nextCfg);
-    if (nextIssues.length > 0) {
-      flash(nextIssues[0]);
-      return;
-    }
     setCfg(nextCfg);
     sendCommand(action, nextCfg);
-    flash(`Applying configuration and ${commandLabel[action].toLowerCase()}…`);
   };
-  const discard = (section) => {
+  const discardAll = () => {
     if (!remote) return;
-    setCfg({ ...cfg, [section]: remote[section] });
+    setCfg(remote);
   };
 
   const remote = (() => {
@@ -103,108 +82,43 @@ const Device = ({ jwt, id, host, ssl }) => {
   const differs = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
   const storeDirty = !!cfg && !!remote && differs(cfg.store, remote.store);
   const bridgeDirty = !!cfg && !!remote && differs(cfg.bridge, remote.bridge);
-
-  const state = device.state || "unknown";
-  const storeText = device.store?.running
-    ? device.store?.alive
-      ? "running"
-      : "starting"
-    : "stopped";
-  const bridgeText = device.bridge?.enabled
-    ? device.bridge?.running
-      ? "running"
-      : "stopped"
-    : "disabled";
-  const reps = device.store?.replications || [];
-  const repActive = reps.filter((r) => r.is_active).length;
-  const repPending = reps.reduce((s, r) => s + (r.pending_records || 0), 0);
+  const issues = cfg ? validateConfig(cfg) : [];
 
   const billingValid = device.billing?.state === "valid";
-  const storePort = device.store?.httpPort || cfg?.store.httpPort;
-  const consoleUrl =
-    device.store?.host && storePort
-      ? `http://${device.store.host}:${storePort}/`
-      : null;
+  const storeRunning = !!device.store?.running;
+  const bridgeRunning = !!device.bridge?.running;
+  const bridgeEnabled = !!(remote || cfg)?.bridge?.enabled;
+  const canStart = !storeRunning || (bridgeEnabled && !bridgeRunning);
+  const canStop = storeRunning || bridgeRunning;
 
   return (
     <div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "auto 1fr",
-          gap: "2px 12px",
-          fontSize: "13px",
-          margin: "8px 0",
-          maxWidth: "340px",
-        }}
-      >
-        {[
-          [
-            "State",
-            state,
-            state === "running"
-              ? "#107c10"
-              : state === "error"
-                ? "#d13438"
-                : "#666",
-          ],
-          [
-            "Billing",
-            billingValid ? "valid" : "invalid",
-            billingValid ? "#107c10" : "#d13438",
-          ],
-          ["Store", storeText, null],
-          ["Bridge", bridgeText, null],
-          ...(reps.length
-            ? [
-                [
-                  "Replication",
-                  `${repActive}/${reps.length} active · ${repPending} pending`,
-                  null,
-                ],
-              ]
-            : []),
-        ].map(([label, value, color]) => (
-          <React.Fragment key={label}>
-            <span style={{ color: "#888" }}>{label}</span>
-            <b style={color ? { color } : undefined}>{value}</b>
-          </React.Fragment>
-        ))}
-      </div>
-
-      {feedback && (
-        <pre
-          style={{
-            whiteSpace: "pre-wrap",
-            fontSize: "12px",
-            margin: "6px 0",
-            padding: "6px 8px",
-            borderRadius: "4px",
-            background: "#f4f4f4",
-            color: "#555",
-            border: "1px solid #eee",
-          }}
-        >
-          {feedback}
-        </pre>
+      {!billingValid && (
+        <Alert variant="danger" className="py-2">
+          Billing is invalid. Controls stay disabled until a valid billing token
+          arrives.
+        </Alert>
       )}
 
       {!cfg ? (
-        <div style={{ color: "#888" }}>
-          <p>Loading configuration…</p>
-          {waited && (
-            <p style={{ fontSize: "12px" }}>
+        <div className="text-secondary d-flex align-items-center gap-2">
+          <Spinner animation="border" size="sm" />
+          {waited ? (
+            <span>
               The device has not reported its configuration yet. Make sure the
-              capability is running on the robot.
-              <button
-                style={btn}
+              capability is running on the robot.{" "}
+              <Button
+                variant="outline-secondary"
+                size="sm"
                 onClick={() =>
                   mqttSync && mqttSync.subscribe(`${prefixVersion}/device`)
                 }
               >
                 Retry
-              </button>
-            </p>
+              </Button>
+            </span>
+          ) : (
+            <span>Loading configuration…</span>
           )}
         </div>
       ) : (
@@ -215,21 +129,22 @@ const Device = ({ jwt, id, host, ssl }) => {
             dirty={storeDirty}
             dev={device}
             remote={remote}
-            consoleUrl={consoleUrl}
-            billingValid={billingValid}
-            onControl={control}
-            onApply={apply}
-            onDiscard={() => discard("store")}
           />
           <BridgeSection
             cfg={cfg}
             setCfg={setCfg}
             dirty={bridgeDirty}
             dev={device}
+          />
+          <ControlBar
+            dirty={storeDirty || bridgeDirty}
+            issues={issues}
             billingValid={billingValid}
+            canStart={canStart}
+            canStop={canStop}
             onControl={control}
-            onApply={apply}
-            onDiscard={() => discard("bridge")}
+            onApply={() => apply("restart")}
+            onDiscard={discardAll}
           />
         </>
       )}

@@ -33,3 +33,4 @@ client.key
 **/package-lock.json
 robot/bin/
 dist/*.js.map
+*.tgz
